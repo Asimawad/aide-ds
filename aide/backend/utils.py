@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from typing import Callable
 
@@ -9,6 +10,8 @@ FunctionCallType = dict
 OutputType = str | FunctionCallType
 
 import backoff
+
+logger = logging.getLogger("aide")
 
 
 @backoff.on_predicate(
@@ -22,11 +25,14 @@ def backoff_create(
     try:
         return create_fn(*args, **kwargs)
     except retry_exceptions as e:
+        logger.info(f"Backoff exception: {e}")
         return False
 
 
 def opt_messages_to_list(
-    system_message: str | None, user_message: str | None, convert_system_to_user: bool = False
+    system_message: str | None,
+    user_message: str | None,
+    convert_system_to_user: bool = False,
 ) -> list[dict[str, str]]:
     messages = []
     if system_message:
