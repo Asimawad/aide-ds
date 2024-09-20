@@ -46,6 +46,7 @@ class AgentConfig:
     expose_prediction: bool
     data_preview: bool
     convert_system_to_user: bool
+    obfuscate: bool
 
     code: StageConfig
     feedback: StageConfig

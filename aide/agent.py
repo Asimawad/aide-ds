@@ -207,12 +207,19 @@ class Agent:
         return "", completion_text  # type: ignore
 
     def _draft(self) -> Node:
-        prompt: Any = {
-            "Introduction": (
-                "You are a Kaggle grandmaster attending a competition. "
-                "In order to win this competition, you need to come up with an excellent and creative plan "
+        introduction = (
+            "You are a Kaggle grandmaster attending a competition. "
+            "In order to win this competition, you need to come up with an excellent and creative plan "
+            "for a solution and then implement this solution in Python. We will now provide a description of the task."
+        )
+        if self.acfg.obfuscate:
+            introduction = (
+                "You are an expert machine learning engineer attempting a task. "
+                "In order to complete this task, you need to come up with an excellent and creative plan "
                 "for a solution and then implement this solution in Python. We will now provide a description of the task."
-            ),
+            )
+        prompt: Any = {
+            "Introduction": introduction,
             "Task description": self.task_desc,
             "Memory": self.journal.generate_summary(),
             "Instructions": {},
@@ -241,13 +248,21 @@ class Agent:
         return new_node
 
     def _improve(self, parent_node: Node) -> Node:
-        prompt: Any = {
-            "Introduction": (
-                "You are a Kaggle grandmaster attending a competition. You are provided with a previously developed "
+        introduction = (
+            "You are a Kaggle grandmaster attending a competition. You are provided with a previously developed "
+            "solution below and should improve it in order to further increase the (test time) performance. "
+            "For this you should first outline a brief plan in natural language for how the solution can be improved and "
+            "then implement this improvement in Python based on the provided previous solution. "
+        )
+        if self.acfg.obfuscate:
+            introduction = (
+                "You are an expert machine learning engineer attempting a task. You are provided with a previously developed "
                 "solution below and should improve it in order to further increase the (test time) performance. "
                 "For this you should first outline a brief plan in natural language for how the solution can be improved and "
                 "then implement this improvement in Python based on the provided previous solution. "
-            ),
+            )
+        prompt: Any = {
+            "Introduction": introduction,
             "Task description": self.task_desc,
             "Memory": self.journal.generate_summary(),
             "Instructions": {},
@@ -275,14 +290,23 @@ class Agent:
         return new_node
 
     def _debug(self, parent_node: Node) -> Node:
-        prompt: Any = {
-            "Introduction": (
-                "You are a Kaggle grandmaster attending a competition. "
+        introduction = (
+            "You are a Kaggle grandmaster attending a competition. "
+            "Your previous solution had a bug and/or did not produce a submission.csv, "
+            "so based on the information below, you should revise it in order to fix this. "
+            "Your response should be an implementation outline in natural language,"
+            " followed by a single markdown code block which implements the bugfix/solution."
+        )
+        if self.acfg.obfuscate:
+            introduction = (
+                "You are an expert machine learning engineer attempting a task. "
                 "Your previous solution had a bug and/or did not produce a submission.csv, "
                 "so based on the information below, you should revise it in order to fix this. "
                 "Your response should be an implementation outline in natural language,"
                 " followed by a single markdown code block which implements the bugfix/solution."
-            ),
+            )
+        prompt: Any = {
+            "Introduction": introduction,
             "Task description": self.task_desc,
             "Previous (buggy) implementation": wrap_code(parent_node.code),
             "Execution output": wrap_code(parent_node.term_out, lang=""),
@@ -373,12 +397,19 @@ class Agent:
 
         node.absorb_exec_result(exec_result)
 
-        prompt = {
-            "Introduction": (
-                "You are a Kaggle grandmaster attending a competition. "
+        introduction = (
+            "You are a Kaggle grandmaster attending a competition. "
+            "You have written code to solve this task and now need to evaluate the output of the code execution. "
+            "You should determine if there were any bugs as well as report the empirical findings."
+        )
+        if self.acfg.obfuscate:
+            introduction = (
+                "You are an expert machine learning engineer attempting a task. "
                 "You have written code to solve this task and now need to evaluate the output of the code execution. "
                 "You should determine if there were any bugs as well as report the empirical findings."
-            ),
+            )
+        prompt = {
+            "Introduction": introduction,
             "Task description": self.task_desc,
             "Implementation": wrap_code(node.code),
             "Execution output": wrap_code(node.term_out, lang=""),
