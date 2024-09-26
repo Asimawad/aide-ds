@@ -21,6 +21,7 @@ GDM_TIMEOUT_EXCEPTIONS = (
     google.api_core.exceptions.RetryError,
     google.api_core.exceptions.TooManyRequests,
     google.api_core.exceptions.ResourceExhausted,
+    google.api_core.exceptions.InternalServerError,
 )
 SAFETY_SETTINGS = [
     {
