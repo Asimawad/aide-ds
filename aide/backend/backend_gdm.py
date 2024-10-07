@@ -13,7 +13,6 @@ from .utils import FunctionSpec, OutputType, backoff_create
 
 logger = logging.getLogger("aide")
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 gdm_model = None  # type: ignore
 generation_config = None  # type: ignore
 
@@ -48,6 +47,7 @@ def _setup_gdm_client(model_name: str, temperature: float):
     global gdm_model
     global generation_config
 
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
     gdm_model = genai.GenerativeModel(model_name)
     generation_config = genai.GenerationConfig(temperature=temperature)
 
