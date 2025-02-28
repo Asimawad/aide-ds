@@ -1,5 +1,5 @@
 import logging
-from . import backend_anthropic, backend_openai, backend_openrouter, backend_gdm
+from . import backend_anthropic, backend_local, backend_openai, backend_openrouter, backend_gdm
 from .utils import FunctionSpec, OutputType, PromptType, compile_prompt_to_md
 
 logger = logging.getLogger("aide")
@@ -10,18 +10,21 @@ def determine_provider(model: str) -> str:
         return "openai"
     elif model.startswith("claude-"):
         return "anthropic"
+    elif model.startswith("deepseek"):
+        return "deepseek"
     elif model.startswith("gemini-"):
         return "gdm"
-    # all other models are handle by openrouter
+    # all other models are handle by local
     else:
-        return "openrouter"
+        return "local"
 
 
 provider_to_query_func = {
     "openai": backend_openai.query,
     "anthropic": backend_anthropic.query,
     "gdm": backend_gdm.query,
-    "openrouter": backend_openrouter.query,
+    # "openrouter": backend_openrouter.query,
+    "local": backend_local.query,
 }
 
 
@@ -33,7 +36,8 @@ def query(
     max_tokens: int | None = None,
     func_spec: FunctionSpec | None = None,
     convert_system_to_user: bool = False,
-    **model_kwargs,
+    local_use : bool = False,
+    **model_kwargs, # his mean that you can pass model specific keyword arguments as kwargs
 ) -> OutputType:
     """
     General LLM query for various backends with a single system and user message.
@@ -67,7 +71,8 @@ def query(
     if func_spec:
         logger.info(f"function spec: {func_spec.to_dict()}", extra={"verbose": True})
 
-    provider = determine_provider(model)
+    # provider = determine_provider(model)
+    provider = determine_provider("local")
     query_func = provider_to_query_func[provider]
     output, req_time, in_tok_count, out_tok_count, info = query_func(
         system_message=system_message,
