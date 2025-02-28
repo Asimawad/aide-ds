@@ -68,7 +68,7 @@ def query(
     choice = completion.choices[0]
     output = choice.message.content
     # Token counts (approximate)
-    in_tokens = len(input_text.split())  # Token count estimation for input
+    # in_tokens = len(input_text.split())  # Token count estimation for input
     out_tokens = len(output.split())  # Token count estimation for output
 
     info = {
@@ -76,4 +76,4 @@ def query(
         "created": time.time(),
     }
 
-    return output, req_time, in_tokens, out_tokens, info
+    # return output, req_time, in_tokens, out_tokens, info

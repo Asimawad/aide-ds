@@ -189,7 +189,7 @@ def run():
             subtitle="Press [b]Ctrl+C[/b] to stop the run",
         )
 
-    while global_step <  1 :#cfg.agent.steps:    #PLEASE REVISE THIS HARCODED THING
+    while global_step <  cfg.agent.steps:    #PLEASE REVISE THIS HARCODED THING
         agent.step(exec_callback=exec_callback)
         # on the last step, print the tree
         if global_step == cfg.agent.steps - 1:

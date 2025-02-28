@@ -346,6 +346,7 @@ class Agent:
         logger.info(f"Agent is generating code, parent node type: {type(parent_node)}")
 
         if parent_node is None:
+            # print(result_node.code) # remove later
             result_node = self._draft()
         elif parent_node.is_buggy:
             result_node = self._debug(parent_node)
@@ -426,6 +427,7 @@ class Agent:
                 convert_system_to_user=self.acfg.convert_system_to_user,
             ),
         )
+        # print("--------------------------",response) # remove later
 
         # if the metric isn't a float then fill the metric with the worst metric
         if not isinstance(response["metric"], float):

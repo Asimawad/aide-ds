@@ -32,7 +32,7 @@ agent:
   # total time available to agent
   time_limit: 86400 # 24 hrs (purely informational, implementation is user's resp)
   # whether to instruct the agent to use CV (set to 1 to disable)
-  k_fold_validation: 5
+  k_fold_validation: 1 #5
   # whether to instruct the agent to generate a prediction function
   expose_prediction: False
   # whether to provide the agent with a preview of the data
@@ -44,13 +44,13 @@ agent:
 
   # LLM settings for coding
   code:
-    model: TinyLlama/TinyLlama-1.1B-Chat-v1.0     #   model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    model: gemma2:2b     #   model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
     # model: gpt-4-turbo
     temp: 0.5
 
   # LLM settings for evaluating program output / tracebacks
   feedback:
-    model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+    model: gemma2:2b 
     # model: gpt-4-turbo
     temp: 0.5
 

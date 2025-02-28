@@ -24,6 +24,7 @@ def journal2report(journal: Journal, task_desc: dict):
     return query(
         system_message=system_prompt_dict,
         user_message=context_prompt,
-        model="gpt-4-turbo-preview",
+        model="gemma2:2b", # edited by asim
+        # model="gpt-4-turbo-preview",
         max_tokens=4096,
     )
