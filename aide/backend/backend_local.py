@@ -42,16 +42,44 @@ def query(
     filtered_kwargs: dict = select_values(notnone, model_kwargs)  # type: ignore
 
     messages = opt_messages_to_list(system_message, user_message, convert_system_to_user=convert_system_to_user)
-
     
-    func_spec = None # edit this if you find a model that supports using tools
+    # func_spec = None # edit this if you find a model that supports using tools
     if func_spec is not None:
-        filtered_kwargs["tools"] = [func_spec.as_openai_tool_dict]
+        _tools = [{
+            "type": "function",
+            "function": {
+                "name": func_spec.name,
+                "description": func_spec.description,
+                "parameters": func_spec.json_schema,
+            },
+            "strict": True}]
+        # [func_spec.as_openai_tool_dict]
+        print("tooooooools" , _tools)
+
         # force the model the use the function
-        filtered_kwargs["tool_choice"] = func_spec.openai_tool_choice_dict
+        _tool_choice = [{
+            "type": "function",
+            "function": {"name": func_spec.name}} ]
+        # [func_spec.openai_tool_choice_dict]
+        print("______________________________________________________________","\n",_tool_choice)
+
 
     t0 = time.time()
-    completion = backoff_create(
+    if func_spec is not None:
+        # with open('out.txt', 'wb') as f:
+            
+        #     f.write(messages)
+        print(messages)
+        completion = backoff_create(
+        _client.chat.completions.create,
+        OLLAMA_API_EXCEPTIONS,
+        messages=messages,
+        tools = _tools,
+        tool_choice=_tool_choice,
+        **filtered_kwargs,
+    )
+    else:
+        completion = backoff_create(
         _client.chat.completions.create,
         OLLAMA_API_EXCEPTIONS,
         messages=messages,
@@ -60,10 +88,15 @@ def query(
     req_time = time.time() - t0
 
     choice = completion.choices[0]
-
+    print(choice)
     if func_spec is None:
         output = choice.message.content
-        # print(output) # remove later
+        print("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOo")
+        print(messages,"\n",output) # remove later
+        with open("output.json", "w") as f:
+            json.dump(messages[0], f, indent=4)
+        
+        print("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOo")
     else:
         assert (
             choice.message.tool_calls
