@@ -43,13 +43,13 @@ def query(
 
     messages = opt_messages_to_list(system_message, user_message, convert_system_to_user=convert_system_to_user)
 
-    
-    func_spec = None # edit this if you find a model that supports using tools
+    # func_spec = None # edit this if you find a model that supports using tools
     if func_spec is not None:
         filtered_kwargs["tools"] = [func_spec.as_openai_tool_dict]
         # force the model the use the function
         filtered_kwargs["tool_choice"] = func_spec.openai_tool_choice_dict
 
+    print(filtered_kwargs)
     t0 = time.time()
     completion = backoff_create(
         _client.chat.completions.create,
