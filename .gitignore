@@ -6,6 +6,7 @@ tests.py
 # C extensions
 *.so
 tree.txt
+arrk.py
 # Distribution / packaging
 .Python
 build/

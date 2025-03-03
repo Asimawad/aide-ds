@@ -12,7 +12,7 @@ from aide.backend.utils import (FunctionSpec,    OutputType,    opt_messages_to_
 logger = logging.getLogger("aide")
 
 _client: openai.OpenAI = None  # type: ignore
-_client = openai.OpenAI(base_url= 'http://localhost:11434/v1/' , api_key='ollama',max_retries=0)
+# _client = openai.OpenAI(base_url= 'http://localhost:11434/v1/' , api_key='ollama',max_retries=0)
 
 
 OLLAMA_API_EXCEPTIONS = (
@@ -27,7 +27,7 @@ OLLAMA_API_EXCEPTIONS = (
 @once
 def _setup_ollama_client():
     global _client
-    client = openai.OpenAI(base_url= 'http://localhost:11434/v1/' , api_key='ollama',max_retries=0)
+    _client = openai.OpenAI(base_url= 'http://localhost:11434/v1/' , api_key='ollama',max_retries=0)
 
 
 
@@ -65,7 +65,21 @@ def query(
         # with open('out.txt', 'wb') as f:
             
         #     f.write(messages)
-        print(messages)
+        print("we are in feedback mode\n ________________________________________\n",)
+        print("\n")
+        print(messages,"\n")
+        print("\n")
+        print("_______________________________________________________________\n")
+        print("\n")
+        print(f"tools arre {_tools}\n")        
+        print("\n")
+        
+        print(f"____________________________________\n")        
+        print("\n")
+        
+        print(f"tool_choices arre {_tool_choice}\n")    
+        print("\n")
+            
         completion = backoff_create(
         _client.chat.completions.create,
         OLLAMA_API_EXCEPTIONS,
@@ -74,6 +88,10 @@ def query(
         tool_choice=_tool_choice,
         **filtered_kwargs,
     )
+        print("_______________________________________\n")
+        print(f"response of the frrd back is {completion.choices[0]}")
+        print("\n")
+        
     else:
         completion = backoff_create(
         _client.chat.completions.create,
@@ -84,7 +102,7 @@ def query(
     req_time = time.time() - t0
 
     choice = completion.choices[0]
-    print(choice)
+    # print(choice)
     if func_spec is None:
         output = choice.message.content
         with open("output.json", "w") as f:
