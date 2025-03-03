@@ -17,7 +17,6 @@ logger = logging.getLogger("aide")
 
 _client: openai.OpenAI = None  # type: ignore
 
-
 OPENAI_TIMEOUT_EXCEPTIONS = (
     openai.RateLimitError,
     openai.APIConnectionError,
@@ -71,6 +70,9 @@ def query(
         ), "Function name mismatch"
         try:
             output = json.loads(choice.message.tool_calls[0].function.arguments)
+            print("_______________________________________\n")
+            print(f"response of the feed back is {output}")
+            print("\n")
         except json.JSONDecodeError as e:
             logger.error(
                 f"Error decoding the function arguments: {choice.message.tool_calls[0].function.arguments}"
