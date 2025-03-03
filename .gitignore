@@ -5,6 +5,7 @@ __pycache__/
 tests.py
 # C extensions
 *.so
+aide/backend/backend_deepseek.py
 tree.txt
 # Distribution / packaging
 .Python
