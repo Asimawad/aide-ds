@@ -44,14 +44,15 @@ agent:
 
   # LLM settings for coding
   code:
-    model: gemma2:2b     #   model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    model: deepseek-r1:14b     #   model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
     # model: gpt-4-turbo
     temp: 0.5
 
   # LLM settings for evaluating program output / tracebacks
   feedback:
-    # model: llama3.2:latest
-    model: gpt-4-turbo
+
+    # model: MFDoom/deepseek-r1-tool-calling:1.5b
+    model: o3-mini
     temp: 0.5
 
   # hyperparameters for the tree search
