@@ -30,7 +30,7 @@ agent:
   # how many improvement iterations to run
   steps: 20
   # total time available to agent
-  time_limit: 86400 # 24 hrs (purely informational, implementation is user's resp)
+  time_limit: 3600 #1 hour customised # 24 hrs (purely informational, implementation is user's resp)
   # whether to instruct the agent to use CV (set to 1 to disable)
   k_fold_validation: 5
   # whether to instruct the agent to generate a prediction function
@@ -44,7 +44,7 @@ agent:
 
   # LLM settings for coding
   code:
-    model: deepseek-r1:14b     #   model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    model: deepseek-r1:14b     # model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
     # model: gpt-4-turbo
     temp: 0.5
 
