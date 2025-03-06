@@ -50,8 +50,8 @@ agent:
 
   # LLM settings for evaluating program output / tracebacks
   feedback:
-    # model: llama3.2:latest
-    model: gpt-4-turbo
+    model: MFDoom/deepseek-r1-tool-calling:1.5b
+    # model: gpt-4-turbo
     temp: 0.5
 
   # hyperparameters for the tree search
