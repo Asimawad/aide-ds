@@ -38,6 +38,7 @@ def query(
     func_spec: FunctionSpec | None = None,
     convert_system_to_user: bool = False,
     local_use : bool = False,
+    reasoning_effort: str | None = None,
     **model_kwargs, # his mean that you can pass model specific keyword arguments as kwargs
 ) -> OutputType:
     """
@@ -56,11 +57,29 @@ def query(
         OutputType: A string completion if func_spec is None, otherwise a dict with the function call details.
     """
 
-    model_kwargs = model_kwargs | {
+    provider = determine_provider(model)
+
+    model_kwargs = {
         "model": model,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
     }
+
+    # Handle provider-specific parameters
+    if provider == "openai" and model.startswith("o3-"):
+        # o3-mini specific parameters
+        if max_tokens is not None:
+            model_kwargs["max_completion_tokens"] = max_tokens
+        if reasoning_effort:
+            model_kwargs["reasoning_effort"] = reasoning_effort
+    else:
+        # Standard parameters for other models
+        if max_tokens is not None:
+            model_kwargs["max_tokens"] = max_tokens
+        if temperature is not None:
+            model_kwargs["temperature"] = temperature
+
+    # Include any additional model-specific keyword arguments
+    model_kwargs.update(model_kwargs)
+
 
     logger.info("---Querying model---", extra={"verbose": True})
     system_message = compile_prompt_to_md(system_message) if system_message else None
