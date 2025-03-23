@@ -99,6 +99,12 @@ print(f"Best solution code: {best_solution.code}")
 ## Development
 
 To install AIDE for development, clone this repository and install it locally.
+first, Install dependencies either using uv or pip
+```bash
+uv sync
+uv pip install -e .
+```
+then:
 
 ```bash
 git clone https://github.com/WecoAI/aideml.git
