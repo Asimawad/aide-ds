@@ -15,6 +15,7 @@ backoff==2.2.1
 bayesian-optimization==1.5.1
 bayespy==0.5.1
 biopython==1.84
+bitsandbytes==0.45.4
 black==24.3.0
 blis==1.2.0
 bson==0.5.10
