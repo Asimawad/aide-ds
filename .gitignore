@@ -10,9 +10,11 @@ tree.txt
 arrk.py
 # Distribution / packaging
 .Python
+info/
 build/
 develop-eggs/
 dist/
+reflection_draafts.py
 downloads/
 eggs/
 .eggs/

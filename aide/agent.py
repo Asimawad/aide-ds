@@ -12,6 +12,7 @@ from .utils import data_preview
 from .utils.config import Config
 from .utils.metric import MetricValue, WorstMetricValue
 from .utils.response import extract_code, extract_text_up_to_code, wrap_code
+from .utils.self_reflection import perform_two_step_reflection # Adjust path if needed
 
 logger = logging.getLogger("aide")
 
@@ -149,15 +150,14 @@ class Agent:
             f"<TOTAL_TIME_REMAINING: {format_time(tot_time_remaining)}>",
             f"<TOTAL_STEPS_REMAINING: {self.acfg.steps - self.current_step}>",
             "The code should **implement the proposed solution**, **print the value of the evaluation metric computed on a hold-out validation set**,",
-            "**AND MOST IMPORTANTLY SAVE PREDICTIONS ON THE PROVIDED UNLABELED TEST DATA IN A `submission.csv` FILE IN THE ./submission/ DIRECTORY.**",
-            "The code should be a single-file python program that is self-contained and can be executed as-is.",
+            "**AND MOST IMPORTANTLY SAVE PREDICTIONS ON THE PROVIDED UNLABELED TEST DATA IN A `submission.csv` FILE IN THE `./submission/` DIRECTORY.**",            "The code should be a single-file python program that is self-contained and can be executed as-is.",
             "No parts of the code should be skipped, don't terminate the before finishing the script.",
             "Your response should only contain a single code block.",
             f"Be aware of the running time of the code, it should complete within {humanize.naturaldelta(exec_timeout)}.",
             'All the provided input data is stored in "./input" directory.',
-            '**You MUST submit predictions on the provided unlabeled test data in a `submission.csv` file** file in the "./working" directory as described in the task description** This is extremely important since this file is used for grading/evaluation. DO NOT FORGET THE submission.csv file!',
-            'You can also use the "./working" directory to store any temporary files that your code needs to create.',
-            "REMEMBER THE ./submission/submission.csv FILE!!!!! The correct directory is important too.",
+            '**You MUST submit predictions on the provided unlabeled test data in a `submission.csv` file** file in the "./submission" directory as described in the task description** This is extremely important since this file is used for grading/evaluation. DO NOT FORGET THE submission.csv file!',
+            "You can use the `./working/` directory to store temporary files (e.g., models, intermediate data), but the final `submission.csv` MUST be in `./submission/`.",
+            "REMEMBER THE `./submission/submission.csv` FILE!!!!! The correct directory is critical for evaluation.",
         ]
         if self.acfg.expose_prediction:
             impl_guideline.append(
@@ -182,7 +182,27 @@ class Agent:
                 "There should be no additional headings or text in your response. Just natural language text followed by a newline and then the markdown code block. "
             )
         }
-
+    def reflection(self,code,prompt,plan):
+        # I should implement self reflection here
+        # I should check if the code is a valid python code
+        # I shoud ask the model to critique the code generated, in terms of correctness and the quality 
+        # of the code and also the correctness of the paths for the inputs and outputs (./submission/submission.csv) 
+        reflection  = completion_text = query(
+                system_message=code,
+                user_message= f"""given this context:{plan},
+                you are an expert machine learning engineer, in this initial phase, we want the code to be correct and running, we will deal with the performance and quality of results later,
+                give a good look at possible mistakes in the code, guide yourself by the initial informations that are provided here : {prompt} ensure correctness,
+                and also the correctness of the paths for the inputs and outputs (./submission/submission.csv), 
+                the idea is that we dont want sloppy mistakes, we want the code to run at least, read the inputs correctly, 
+                perform the outlined plan, and then produce a csv submission. You are encouraged to respond with three sections, 
+                1.reflect on the code and plan, 2. provide refined plan 3.refined code""",
+                model=self.acfg.code.model,
+                temperature=self.acfg.code.temp,
+                convert_system_to_user=self.acfg.convert_system_to_user,
+            )
+        return reflection
+        
+                
     def plan_and_code_query(self, prompt, retries=3) -> tuple[str, str]:
         """Generate a natural language plan + code in the same LLM call and split them apart."""
         completion_text = None
@@ -194,7 +214,6 @@ class Agent:
                 temperature=self.acfg.code.temp,
                 convert_system_to_user=self.acfg.convert_system_to_user,
             )
-
             code = extract_code(completion_text)
             nl_text = extract_text_up_to_code(completion_text)
 
@@ -241,7 +260,10 @@ class Agent:
 
         if self.acfg.data_preview:
             prompt["Data Overview"] = self.data_preview
-
+        # print("____________________________________________________\n")
+        # print(f"the currently used Prompt: {compile_prompt_to_md(prompt)}")
+        # print("\n____________________________________________________\n")
+        
         plan, code = self.plan_and_code_query(prompt)
         new_node = Node(plan=plan, code=code)
         logger.info(f"Drafted new node {new_node.id}")
@@ -329,6 +351,36 @@ class Agent:
         logger.info(f"Debugged node {parent_node.id} to create new node {new_node.id}")
         return new_node
 
+    def reflect(self, code: str) -> tuple[str, str]:
+        """
+        Performs a two-step self-reflection using the external utility function.
+
+        Returns:
+            Tuple: (reflection_plan, revised_code)
+        """
+        logger.info("Initiating two-step self-reflection...")
+        reflection_plan, revised_code = perform_two_step_reflection(
+            code=code,
+            task_desc=self.task_desc,
+            model_name=self.acfg.code.model,
+            temperature=self.acfg.code.temp,
+            convert_system_to_user=self.acfg.convert_system_to_user,
+            query_func=query,              # Pass the imported query function
+            wrap_code_func=wrap_code,          # Pass the imported wrap_code function
+            extract_code_func=extract_code       # Pass the imported extract_code function
+        )
+
+        if revised_code != code and revised_code: # Check if code actually changed
+             logger.info("Self-reflection resulted in code changes.")
+        elif reflection_plan == "No specific errors found requiring changes.":
+            logger.info("Self-reflection found no errors requiring changes.")
+        else:
+            logger.warning("Self-reflection finished, but revised code is same as original or empty.")
+
+
+        return reflection_plan, revised_code
+
+
     def update_data_preview(
         self,
     ):
@@ -344,19 +396,36 @@ class Agent:
 
         parent_node = self.search_policy()
         logger.info(f"Agent is generating code, parent node type: {type(parent_node)}")
-
+        draft_flag = False
         if parent_node is None:
-            # print(result_node.code) # remove later
+            draft_flag = True
             result_node = self._draft()
         elif parent_node.is_buggy:
             result_node = self._debug(parent_node)
         else:
             result_node = self._improve(parent_node)
 
-        result_node = self.parse_exec_result(
-            node=result_node,
-            exec_result=exec_callback(result_node.code, True),
-        )
+        if draft_flag: # Or maybe reflect on every step if desired? Adjust condition.
+            try:
+                reflection_plan, reflection_code = self.reflect(code=result_node.code)
+                # Only update if reflection actually produced new, non-empty code
+                if reflection_code and reflection_code.strip() and reflection_code != result_node.code:
+                    result_node.code = reflection_code
+                    # Decide if you want to overwrite the plan with the reflection plan
+                    logger.info(f"Node {result_node.id} self-reflected and updated code")
+                elif reflection_plan != "No specific errors found requiring changes.":
+                    logger.info(f"Node {result_node.id} self-reflection completed, but no changes applied.")
+
+            except Exception as e:
+                logger.error(f"Error during self-reflection for node {result_node.id}: {e}", exc_info=True)
+                # Decide how to handle reflection errors - proceed with original code?
+
+        # Proceed with execution
+        logger.info(f"Agent is executing code for node {result_node.id}")
+
+        logger.info(f"Agent is executing code for node {result_node.id}")
+        result_node = self.parse_exec_result(node=result_node, exec_result=exec_callback(result_node.code, True))
+
         # handle final cases where we missed buggy nodes somehow
         if not result_node.is_buggy:
             if not (self.cfg.workspace_dir / "submission" / "submission.csv").exists():
@@ -392,7 +461,7 @@ class Agent:
                 logger.info(f"Node {result_node.id} is not the best node")
                 logger.info(f"Node {best_node.id} is still the best node")
         self.current_step += 1
-
+        
     def parse_exec_result(self, node: Node, exec_result: ExecutionResult) -> Node:
         logger.info(f"Agent is parsing execution results for node {node.id}")
 
@@ -427,7 +496,6 @@ class Agent:
                 convert_system_to_user=self.acfg.convert_system_to_user,
             ),
         )
-        # print("--------------------------",response) # remove later
 
         # if the metric isn't a float then fill the metric with the worst metric
         if not isinstance(response["metric"], float):
@@ -459,3 +527,4 @@ class Agent:
             )
 
         return node
+    
