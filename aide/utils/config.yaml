@@ -46,7 +46,7 @@ agent:
   code:
     model: deepseek-r1:latest       #"HuggingFaceTB/SmolLM2-135M-Instruct"
     # model: gpt-4-turbo
-    temp: 0.2
+    temp: 0.5
 
   # LLM settings for evaluating program output / tracebacks
   feedback:
@@ -57,6 +57,6 @@ agent:
 
   # hyperparameters for the tree search
   search:
-    max_debug_depth: 5 # 3
-    debug_prob: 0.7 #0.5
-    num_drafts: 7 #5
+    max_debug_depth: 5 
+    debug_prob: 0.5
+    num_drafts: 5

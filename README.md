@@ -15,23 +15,20 @@ More specifically, AIDE has the following features:
 4. **Visualization**: We also provide tools to visualize the solution tree produced by AIDE for a better understanding of its experimentation process. This gives you insights not only about what works but also what doesn't.
 
 # How to use AIDE?
-
 ## Setup
 
-Make sure you have `Python>=3.10` installed and run:
-
+Make sure you have uv and `Python>=3.11` installed and run:
 ```bash
-pip install -U aideml
+uv venv --python3.11 .aide-ds
+source .aide-ds/bin/activate
+uv pip install -e .
 ```
-
 Also install `unzip` to allow the agent to autonomously extract your data.
 
 Set up your OpenAI (or Anthropic) API key:
 
 ```bash
 export OPENAI_API_KEY=<your API key>
-# or
-export ANTHROPIC_API_KEY=<your API key>
 ```
 
 ## Running AIDE via the command line

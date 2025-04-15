@@ -5,27 +5,38 @@ import logging
 import time
 from funcy import notnone, once, select_values
 import openai
+from dotenv import load_dotenv
+import os
 
-
-from aide.backend.utils import (FunctionSpec,    OutputType,    opt_messages_to_list,    backoff_create)
+from aide.backend.utils import (
+    FunctionSpec,
+    OutputType,
+    opt_messages_to_list,
+    backoff_create,
+)
 
 logger = logging.getLogger("aide")
-
+# load environemtn variables
+load_dotenv()
 _client: openai.OpenAI = None  # type: ignore
 
 OLLAMA_API_EXCEPTIONS = (
     # openai.InvalidRequestError,  # Raised for invalid API requests
     openai.AuthenticationError,  # Raised for authentication issues
-    openai.APIConnectionError,   # Raised for connection issues
-    openai.RateLimitError,       # Raised when rate limits are exceeded
-    openai.APIError,             # Raised for general API errors
-    openai.InternalServerError
+    openai.APIConnectionError,  # Raised for connection issues
+    openai.RateLimitError,  # Raised when rate limits are exceeded
+    openai.APIError,  # Raised for general API errors
+    openai.InternalServerError,
 )
+
 
 @once
 def _setup_ollama_client():
     global _client
-    _client = openai.OpenAI(base_url= 'http://localhost:11434/v1/' , api_key='ollama',max_retries=0)
+    _client = openai.OpenAI(
+        base_url="http://localhost:11434/v1/", api_key="ollama", max_retries=0
+    )
+
 
 def query(
     system_message: str | None,
@@ -37,42 +48,46 @@ def query(
     _setup_ollama_client()
     filtered_kwargs: dict = select_values(notnone, model_kwargs)  # type: ignore
 
-    messages = opt_messages_to_list(system_message, user_message, convert_system_to_user=convert_system_to_user) 
+    messages = opt_messages_to_list(
+        system_message, user_message, convert_system_to_user=convert_system_to_user
+    )
     # func_spec = None # edit this if you find a model that supports using tools
     if func_spec is not None:
-        _tools = [{
-            "type": "function",
-            "function": {
-                "name": func_spec.name,
-                "description": func_spec.description,
-                "parameters": func_spec.json_schema,
-            },
-            "strict": True}]
+        _tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": func_spec.name,
+                    "description": func_spec.description,
+                    "parameters": func_spec.json_schema,
+                },
+                "strict": True,
+            }
+        ]
 
         # force the model the use the function
-        _tool_choice = [{
-            "type": "function",
-            "function": {"name": func_spec.name}} ]
-
-
+        _tool_choice = [{"type": "function", "function": {"name": func_spec.name}}]
+    if not os.getenv("OPENAI_API_KEY"):
+        os.ENVIRON["OPENAI_API_KEY"] = input("Please enter your OpenAI API key: ")
+        # raise EnvironmentError("OPENAI_API_KEY is not set in the environment variables.")
     t0 = time.time()
-    if func_spec is not None:            
+    if func_spec is not None:
         completion = backoff_create(
-        _client.chat.completions.create,
-        OLLAMA_API_EXCEPTIONS,
-        messages=messages,
-        tools = _tools,
-        tool_choice=_tool_choice,
-        **filtered_kwargs,
-    )
-      
+            _client.chat.completions.create,
+            OLLAMA_API_EXCEPTIONS,
+            messages=messages,
+            tools=_tools,
+            tool_choice=_tool_choice,
+            **filtered_kwargs,
+        )
+
     else:
         completion = backoff_create(
-        _client.chat.completions.create,
-        OLLAMA_API_EXCEPTIONS,
-        messages=messages,
-        **filtered_kwargs,
-    )
+            _client.chat.completions.create,
+            OLLAMA_API_EXCEPTIONS,
+            messages=messages,
+            **filtered_kwargs,
+        )
     req_time = time.time() - t0
 
     choice = completion.choices[0]
@@ -80,7 +95,7 @@ def query(
         output = choice.message.content
         with open("output.json", "w") as f:
             json.dump(messages[0], f, indent=4)
-        
+
     else:
         assert (
             choice.message.tool_calls

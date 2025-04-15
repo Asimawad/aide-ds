@@ -3,7 +3,8 @@
 import json
 import logging
 import time
-
+from dotenv import load_dotenv
+import os
 from aide.backend.utils import (
     FunctionSpec,
     OutputType,
@@ -15,6 +16,8 @@ import openai
 
 logger = logging.getLogger("aide")
 
+# load environment variables
+load_dotenv()
 _client: openai.OpenAI = None  # type: ignore
 
 OPENAI_TIMEOUT_EXCEPTIONS = (
@@ -41,13 +44,16 @@ def query(
     _setup_openai_client()
     filtered_kwargs: dict = select_values(notnone, model_kwargs)  # type: ignore
 
-    messages = opt_messages_to_list(system_message, user_message, convert_system_to_user=convert_system_to_user)
+    messages = opt_messages_to_list(
+        system_message, user_message, convert_system_to_user=convert_system_to_user
+    )
 
     if func_spec is not None:
         filtered_kwargs["tools"] = [func_spec.as_openai_tool_dict]
         # force the model the use the function
         filtered_kwargs["tool_choice"] = func_spec.openai_tool_choice_dict
-
+    if not os.getenv("OPENAI_API_KEY"):
+        os.ENVIRON["OPENAI_API_KEY"] = input("Please enter your OpenAI API key: ")
     t0 = time.time()
     completion = backoff_create(
         _client.chat.completions.create,

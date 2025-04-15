@@ -10,6 +10,8 @@ tree.txt
 arrk.py
 # Distribution / packaging
 .Python
+pyproject.toml
+uv.lock
 info/
 build/
 develop-eggs/
