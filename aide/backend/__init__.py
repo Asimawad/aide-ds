@@ -1,5 +1,10 @@
 import logging
-from . import backend_anthropic, backend_local, backend_openai, backend_openrouter, backend_gdm,backend_deepseek
+from . import (
+    backend_local,
+    backend_openai,
+    backend_vllm,
+    backend_deepseek,
+)
 from .utils import FunctionSpec, OutputType, PromptType, compile_prompt_to_md
 
 logger = logging.getLogger("aide")
@@ -8,12 +13,8 @@ logger = logging.getLogger("aide")
 def determine_provider(model: str) -> str:
     if model.startswith("gpt-") or model.startswith("o1-") or model.startswith("o3-"):
         return "openai"
-    elif model.startswith("claude-"):
-        return "anthropic"
-    elif model.startswith("deepseek"):
+    elif model.startswith("deepseek-"):
         return "deepseek"
-    elif model.startswith("gemini-"):
-        return "gdm"
     # all other models are handle by local
     else:
         return "local"
@@ -21,9 +22,7 @@ def determine_provider(model: str) -> str:
 
 provider_to_query_func = {
     "openai": backend_openai.query,
-    "anthropic": backend_anthropic.query,
-    "gdm": backend_gdm.query,
-    "openrouter": backend_openrouter.query,
+    "vllm": backend_vllm.query,
     "deepseek": backend_deepseek.query,
     "local": backend_local.query,
 }
@@ -37,9 +36,9 @@ def query(
     max_tokens: int | None = None,
     func_spec: FunctionSpec | None = None,
     convert_system_to_user: bool = False,
-    local_use : bool = False,
+    local_use: bool = False,
     reasoning_effort: str | None = None,
-    **model_kwargs, # his mean that you can pass model specific keyword arguments as kwargs
+    **model_kwargs,  # his mean that you can pass model specific keyword arguments as kwargs
 ) -> OutputType:
     """
     General LLM query for various backends with a single system and user message.
@@ -80,7 +79,6 @@ def query(
     # Include any additional model-specific keyword arguments
     model_kwargs.update(model_kwargs)
 
-
     logger.info("---Querying model---", extra={"verbose": True})
     system_message = compile_prompt_to_md(system_message) if system_message else None
     if system_message:
@@ -92,7 +90,7 @@ def query(
         logger.info(f"function spec: {func_spec.to_dict()}", extra={"verbose": True})
 
     provider = determine_provider(model)
-  
+
     query_func = provider_to_query_func[provider]
     output, req_time, in_tok_count, out_tok_count, info = query_func(
         system_message=system_message,
@@ -102,6 +100,6 @@ def query(
         **model_kwargs,
     )
     logger.info(f"response: {output}", extra={"verbose": True})
-    logger.info(f"---Query complete---", extra={"verbose": True})
+    logger.info("---Query complete---", extra={"verbose": True})
 
     return output
