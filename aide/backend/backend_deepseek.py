@@ -67,9 +67,7 @@ def query(
 
         # force the model the use the function
         _tool_choice = [{"type": "function", "function": {"name": func_spec.name}}]
-    if not os.getenv("OPENAI_API_KEY"):
-        os.ENVIRON["OPENAI_API_KEY"] = input("Please enter your OpenAI API key: ")
-        # raise EnvironmentError("OPENAI_API_KEY is not set in the environment variables.")
+
     t0 = time.time()
     if func_spec is not None:
         completion = backoff_create(
