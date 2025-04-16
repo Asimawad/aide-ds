@@ -21,6 +21,7 @@ rich
 shutup
 torch
 transformers
+setuptools
 # vllm
 # --- Common ML Libraries for Generated Code ---
 scikit-learn
@@ -94,6 +95,7 @@ lightgbm
 # scipy==1.11.4
 # seaborn==0.13.2
 # sentencepiece==0.2.0
+# setuptools==setuptools
 # shutup==0.2.0
 # sklearn-pandas==2.2.0
 # sympy==1.13.2
