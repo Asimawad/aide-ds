@@ -19,13 +19,13 @@ More specifically, AIDE has the following features:
 
 Make sure you have uv and `Python>=3.11` installed and run:
 ```bash
-uv venv --python3.11 .aide-ds
+uv venv .aide-ds --python 3.11 
 source .aide-ds/bin/activate
 uv pip install -e .
 ```
 Also install `unzip` to allow the agent to autonomously extract your data.
 
-Set up your OpenAI (or Anthropic) API key:
+Set up your OpenAI API key:
 
 ```bash
 export OPENAI_API_KEY=<your API key>

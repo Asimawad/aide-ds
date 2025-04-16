@@ -56,7 +56,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
-
+aide/backend/vlm2.py
 # Translations
 *.mo
 *.pot
