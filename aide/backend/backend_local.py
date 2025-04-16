@@ -71,7 +71,7 @@ class LocalLLMManager:
         system_message: Optional[str] = None,
         user_message: Optional[str] = None,
         temperature: float = 0.7,
-        max_new_tokens: int = 200,
+        max_new_tokens: int = 2024,
         **gen_kwargs: Any,
     ) -> Optional[str]:
         """Generate response with proper system/user prompt handling."""
