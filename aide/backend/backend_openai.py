@@ -30,6 +30,8 @@ OPENAI_TIMEOUT_EXCEPTIONS = (
 
 @once
 def _setup_openai_client():
+    if not os.getenv("OPENAI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = input("Please enter your OpenAI API key: ")
     global _client
     _client = openai.OpenAI(max_retries=0)
 
@@ -52,8 +54,6 @@ def query(
         filtered_kwargs["tools"] = [func_spec.as_openai_tool_dict]
         # force the model the use the function
         filtered_kwargs["tool_choice"] = func_spec.openai_tool_choice_dict
-    if not os.getenv("OPENAI_API_KEY"):
-        os.ENVIRON["OPENAI_API_KEY"] = input("Please enter your OpenAI API key: ")
     t0 = time.time()
     completion = backoff_create(
         _client.chat.completions.create,
