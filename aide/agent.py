@@ -206,9 +206,7 @@ class Agent:
                 convert_system_to_user=self.acfg.convert_system_to_user,
             )
             # for debugging -> delete later
-            print("||||||||||||||||||||||||||||||")
-            print("Model output",completion_text)
-            print("||||||||||||||||||||||||||||||")
+
             code = extract_code(completion_text)
             nl_text = extract_text_up_to_code(completion_text)
 
