@@ -15,7 +15,7 @@ class LocalLLMManager:
         if model_name not in cls._cache:
             logger.info(f"Loading local model: {model_name}")
             try:
-                tokenizer = AutoTokenizer.from_pretrained(model_name)
+                tokenizer = AutoTokenizer.from_pretrained(model_name,trust_remote_code=True)
                 # Set padding token to avoid attention mask issues
                 if tokenizer.pad_token is None:
                     tokenizer.pad_token = tokenizer.eos_token
@@ -27,6 +27,7 @@ class LocalLLMManager:
                     model_name,
                     quantization_config=quantization_config,
                     device_map="auto",
+                    trust_remote_code=True,
                 )
                 logger.info(f"Quantized (4-bit) local model '{model_name}' loaded successfully.")
                 cls._cache[model_name] = (tokenizer, model)
