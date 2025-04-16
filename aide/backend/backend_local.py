@@ -3,9 +3,10 @@ import re
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import torch
 from typing import Optional, Dict, Any, Tuple
-
+import os
 logger = logging.getLogger("aide")
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 class LocalLLMManager:
     _cache = {}  # Cache to store loaded models
 
@@ -26,6 +27,7 @@ class LocalLLMManager:
                 model = AutoModelForCausalLM.from_pretrained(
                     model_name,
                     quantization_config=quantization_config,
+                    attn_implementation="flash_attention_2",
                     device_map="auto",
                     trust_remote_code=True,
                 )
