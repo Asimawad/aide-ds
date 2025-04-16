@@ -27,7 +27,7 @@ class LocalLLMManager:
                 model = AutoModelForCausalLM.from_pretrained(
                     model_name,
                     quantization_config=quantization_config,
-                    attn_implementation="flash_attention_2",
+                    # attn_implementation="flash_attention_2",
                     device_map="auto",
                     trust_remote_code=True,
                 )
