@@ -28,7 +28,7 @@ exec:
 # agent hyperparams
 agent:
   # how many improvement iterations to run
-  steps: 20
+  steps: 1 #20
   # total time available to agent
   time_limit: 3600 #1 hour customised # 24 hrs (purely informational, implementation is user's resp)
   # whether to instruct the agent to use CV (set to 1 to disable)
@@ -59,4 +59,4 @@ agent:
   search:
     max_debug_depth: 5 
     debug_prob: 0.5
-    num_drafts: 5
+    num_drafts: 1
