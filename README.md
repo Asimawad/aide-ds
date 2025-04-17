@@ -45,6 +45,12 @@ For example, to run AIDE on the example [house price prediction task](https://ww
 aide data_dir="example_tasks/house_prices" goal="Predict the sales price for each house" eval="Use the RMSE metric between the logarithm of the predicted and observed values."
 ```
 
+
+### And here’s your model-friendly prompt-style instruction:
+
+```bash
+aide data_dir="/example_tasks/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label."
+```
 Options:
 
 - `data_dir` (required): a directory containing all the data relevant for your task (`.csv` files, images, etc.).

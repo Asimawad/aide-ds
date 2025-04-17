@@ -5,7 +5,7 @@ __pycache__/
 tests.py
 # C extensions
 *.so
-aide/backend/backend_deepseek.py
+# aide/backend/backend_deepseek.py
 tree.txt
 arrk.py
 # Distribution / packaging
@@ -172,3 +172,4 @@ logs
 .DS_STORE
 .trunk
 .qodo
+Datasets/
