@@ -1,90 +1,132 @@
-# AIDE: the Machine Learning CodeGen Agent
+# AIDE: Machine Learning CodeGen with Inference-Time Scaling
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)&ensp;
-[![PyPI](https://img.shields.io/pypi/v/aideml?color=blue)](https://pypi.org/project/aideml/)&ensp;
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-3100/)
-[![Discord](https://dcbadge.vercel.app/api/server/Rq7t8wnsuA?compact=true&style=flat)](https://discord.gg/Rq7t8wnsuA)&ensp;
-[![Twitter Follow](https://img.shields.io/twitter/follow/WecoAI?style=social)](https://twitter.com/WecoAI)&ensp;
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)  
+[![PyPI](https://img.shields.io/pypi/v/aideml?color=blue)](https://pypi.org/project/aideml/)  
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-3100/)  
+[![Discord](https://dcbadge.vercel.app/api/server/Rq7t8wnsuA?compact=true&style=flat)](https://discord.gg/Rq7t8wnsuA)  
+[![Twitter Follow](https://img.shields.io/twitter/follow/WecoAI?style=social)](https://twitter.com/WecoAI)  
 
-AIDE is an LLM agent that generates solutions for machine learning tasks just from natural language descriptions of the task. In a benchmark composed of over 60 Kaggle data science competitions, AIDE demonstrated impressive performance, surpassing 50% of Kaggle participants on average (see our [technical report](https://www.weco.ai/blog/technical-report) for details).
-More specifically, AIDE has the following features:
+AIDE is a machine learning code generation agent originally designed to solve data science tasks using natural language descriptions, leveraging APIs for models like OpenAI, Anthropic, and Google DeepMind. This forked version shifts the focus to enhancing small, open-source reasoning models (distilled DeepSeek models: 7B, 14B, 32B, 70B) through **inference-time scaling methods**. We aim to improve the reasoning and code generation capabilities of these models for machine learning tasks, starting with a self-reflection strategy that critiques and edits code in two distinct phases. In a benchmark of over 60 Kaggle data science competitions, AIDE demonstrated impressive performance, surpassing 50% of Kaggle participants on average (see the [technical report](https://www.weco.ai/blog/technical-report) for details).
 
-1. **Instruct with Natural Language**: Describe your problem or additional requirements and expert insights, all in natural language.
-2. **Deliver Solution in Source Code**: AIDE will generate Python scripts for the **tested** machine learning pipeline. Enjoy full transparency, reproducibility, and the freedom to further improve the source code!
-3. **Iterative Optimization**: AIDE iteratively runs, debugs, evaluates, and improves the ML code, all by itself.
-4. **Visualization**: We also provide tools to visualize the solution tree produced by AIDE for a better understanding of its experimentation process. This gives you insights not only about what works but also what doesn't.
+Key features include:
 
-# How to use AIDE?
-## Setup
+1. **Instruct with Natural Language**: Describe your problem or requirements in natural language.
+2. **Deliver Solution in Source Code**: AIDE generates Python scripts for tested machine learning pipelines, ensuring transparency, reproducibility, and the ability to further improve the code.
+3. **Iterative Optimization**: AIDE iteratively runs, debugs, evaluates, and improves ML code autonomously.
+4. **Visualization**: Tools to visualize the solution tree, providing insights into the experimentation process and what works or doesn’t.
 
-Make sure you have uv and `Python>=3.11` installed and run:
+## Project Focus: Inference-Time Scaling on DeepSeek Models
+
+This project explores **inference-time scaling methods** to enhance the performance of small, open-source reasoning models (DeepSeek 7B, 14B, 32B, 70B) on machine learning tasks. Unlike the original AIDE, which relied on API calls to large proprietary models, we run these smaller models locally or on cloud infrastructure (e.g., GCP) to generate and refine ML solutions. Our initial strategy implements a **self-reflection mechanism** split into two phases:
+
+- **Critique Phase**: The model reviews its own code, identifying bugs, incorrect logic, hallucinated imports/methods, and improper file paths (e.g., ensuring outputs save to `./submission/submission.csv`).
+- **Edit Phase**: The model applies minimal edits to fix the identified issues, preserving the original code structure as much as possible.
+
+This self-reflection approach is a stepping stone for more sophisticated inference-time scaling techniques, such as chain-of-thought prompting, multi-step reasoning, or tree-based search augmentation, to further improve the reasoning capabilities of these models.
+
+## How to Use AIDE?
+
+### Setup
+
+Ensure you have `Python>=3.10` installed and run:
+
 ```bash
-uv venv .aide-ds --python 3.11 
-source .aide-ds/bin/activate
-uv pip install -e .
+pip install -U aideml
 ```
-Also install `unzip` to allow the agent to autonomously extract your data.
 
-Set up your OpenAI API key:
+Install `unzip` to allow the agent to autonomously extract your data.
+
+#### Original API Setup (Optional)
+The original AIDE required API keys for OpenAI or Anthropic:
 
 ```bash
 export OPENAI_API_KEY=<your API key>
+# or
+export ANTHROPIC_API_KEY=<your API key>
 ```
 
-## Running AIDE via the command line
+#### New Setup for DeepSeek Models
+This fork uses local or cloud-hosted DeepSeek models instead of API calls. To run the models:
 
-To run AIDE:
+1. **Install Dependencies**:
+   - Install `vLLM` or  `HuggingFace`  for efficient local inference (recommended for DeepSeek models):
+     ```bash
+     pip install vllm
+     ```
+   - Ensure you have a compatible GPU (e.g., NVIDIA 3090 with 24GB VRAM for 7B in 4-bit quantization).
+
+2. **Download DeepSeek Models**:
+   - Download the distilled DeepSeek models (7B, 14B, 32B, or 70B) from their official repository or Hugging Face.
+   - Example for DeepSeek 7B:
+     ```bash
+     huggingface-cli download deepseek-ai/deepseek-7b --local-dir ./models/deepseek-7b
+     ```
+
+3. **Set Model Path**:
+   - Specify the model path in your configuration (see `config.yaml` or command-line options below).
+
+### Running AIDE via the Command Line
+
+To run AIDE with the new DeepSeek models:
 
 ```bash
-aide data_dir="<path to your data directory>" goal="<describe the agent's goal for your task>" eval="<(optional) describe the evaluation metric the agent should use>"
+aide data_dir="<path to your data directory>" goal="<describe the agent's goal for your task>" eval="<(optional) describe the evaluation metric>" agent.code.model="deepseek-7b" agent.model.path="./models/deepseek-7b"
 ```
 
-For example, to run AIDE on the example [house price prediction task](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques/data):
+For example, to run AIDE on the [House Prices prediction task](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques/data) using DeepSeek 7B:
 
 ```bash
-aide data_dir="example_tasks/house_prices" goal="Predict the sales price for each house" eval="Use the RMSE metric between the logarithm of the predicted and observed values."
+aide data_dir="example_tasks/house_prices" goal="Predict the sales price for each house" eval="Use the RMSE metric between the logarithm of the predicted and observed values." agent.code.model="deepseek-r1:latesb"
 ```
 
-Options:
+#### Options:
+- `data_dir` (required): Directory containing your task data (`.csv` files, images, etc.).
+- `goal`: Describe the prediction task (e.g., "Predict sales price for houses").
+- `eval`: Evaluation metric (e.g., "RMSE between the logarithm of predicted and observed values").
+- `agent.code.model`: Specify the DeepSeek model (e.g., `deepseek-7b`, `deepseek-14b`).
+- `agent.model.path`: Path to the downloaded DeepSeek model weights.
+- `agent.steps`: Number of improvement iterations (default: 20).
+- `agent.search.num_drafts`: Number of initial drafts to generate (default: 5).
 
-- `data_dir` (required): a directory containing all the data relevant for your task (`.csv` files, images, etc.).
-- `goal`: describe what you want the models to predict in your task, for example, "Build a timeseries forcasting model for bitcoin close price" or "Predict sales price for houses".
-- `eval`: the evaluation metric used to evaluate the ML models for the task (e.g., accuracy, F1, Root-Mean-Squared-Error, etc.)
-
-Alternatively, you can provide the entire task description as a `desc_str` string, or write it in a plaintext file and pass its path as `desc_file` ([example file](aide/example_tasks/house_prices.md)).
+Alternatively, provide the task description as a `desc_str` string or in a plaintext file via `desc_file`:
 
 ```bash
-aide data_dir="my_data_dir" desc_file="my_task_description.txt"
+aide data_dir="my_data_dir" desc_file="my_task_description.txt" agent.code.model="deepseek-7b" agent.model.path="./models/deepseek-7b"
 ```
 
-The result of the run will be stored in the `logs` directory.
+#### Outputs:
+The results are stored in the `logs` directory:
+- `logs/<experiment-id>/best_solution.py`: Python code of the best solution based on the validation metric.
+- `logs/<experiment-id>/journal.json`: Metadata of the experiment runs, including intermediate code, plans, and evaluation results.
+- `logs/<experiment-id>/tree_plot.html`: Interactive visualization of the solution tree—open in a browser to explore the experimentation process.
 
-- `logs/<experiment-id>/best_solution.py`: Python code of _best solution_ according to the validation metric
-- `logs/<experiment-id>/journal.json`: a JSON file containing the metadata of the experiment runs, including all the code generated in intermediate steps, plan, evaluation results, etc.
-- `logs/<experiment-id>/tree_plot.html`: you can open it in your browser. It contains visualization of solution tree, which details the experimentation process of finding and optimizing ML code. You can explore and interact with the tree visualization to view what plan and code AIDE comes up with in each step.
-
-The `workspaces` directory will contain all the files and data that the agent generated.
+The `workspaces` directory contains all generated files and data.
 
 ### Advanced Usage
 
-To further customize the behaviour of AIDE, some useful options might be:
+Customize AIDE’s behavior with additional options:
+- `agent.code.temp`: Temperature for code generation (default: 0.7—adjust for more/less creativity).
+- `agent.code.quantization`: Quantization level for DeepSeek models (e.g., `4-bit` for 7B on a 6GB GPU).
+- Check `config.yaml` for more options.
 
-- `agent.code.model=...` to configure which model the agent should use for coding (default is `gpt-4-turbo`)
-- `agent.steps=...` to configure how many improvement iterations the agent should run (default is 20)
-- `agent.search.num_drafts=...` to configure the number of initial drafts the agent should generate (default is 5)
+### Using AIDE in Python
 
-You can check the [`config.yaml`](aide/utils/config.yaml) file for more options.
-
-## Using AIDE in Python
-
-Using AIDE within your Python script/project is easy. Follow the setup steps above, and then create an AIDE experiment like below and start running:
+Integrate AIDE into your Python scripts:
 
 ```python
 import aide
+
 exp = aide.Experiment(
-    data_dir="example_tasks/bitcoin_price",  # replace this with your own directory
-    goal="Build a timeseries forcasting model for bitcoin close price.",  # replace with your own goal description
-    eval="RMSLE"  # replace with your own evaluation metric
+    data_dir="example_tasks/house_prices",
+    goal="Predict the sales price for each house.",
+    eval="Use the RMSE metric between the logarithm of the predicted and observed values.",
+    agent_config={
+        "code": {
+            "model": "deepseek-7b",
+            "model_path": "./models/deepseek-7b",
+            "quantization": "4-bit"
+        }
+    }
 )
 
 best_solution = exp.run(steps=10)
@@ -95,33 +137,31 @@ print(f"Best solution code: {best_solution.code}")
 
 ## Development
 
-To install AIDE for development, clone this repository and install it locally.
-first, Install dependencies either using uv or pip
-```bash
-uv sync
-uv pip install -e .
-```
-then:
+To install AIDE for development, clone this repository and install locally:
 
 ```bash
-git clone https://github.com/WecoAI/aideml.git
-cd aideml
-pip install -e .
+git clone https://github.com/Asimawad/aide-ds.git
+cd aide-ds
+uv pip install .  # or pip install -r requirements.txt
+uv pip install -e .  # or pip install -e .
 ```
 
-Contribution guide will be available soon.
+Contribution guide coming soon.
 
 ## Algorithm Description
 
-AIDE's problem-solving approach is inspired by how human data scientists tackle challenges. It starts by generating a set of initial solution drafts and then iteratively refines and improves them based on performance feedback. This process is driven by a technique we call Solution Space Tree Search.
+AIDE’s problem-solving approach is inspired by human data scientists. It generates initial solution drafts and iteratively refines them based on performance feedback using **Solution Space Tree Search**, which consists of:
 
-At its core, Solution Space Tree Search consists of three main components:
+- **Solution Generator**: Proposes new solutions by creating drafts or modifying existing ones (e.g., fixing bugs, improving logic).
+- **Evaluator**: Assesses solutions by running them and extracting the evaluation metric (e.g., RMSE) from logs.
+- **Base Solution Selector**: Picks the most promising solution for the next iteration.
 
-- **Solution Generator**: This component proposes new solutions by either creating novel drafts or making changes to existing solutions, such as fixing bugs or introducing improvements.
-- **Evaluator**: The evaluator assesses the quality of each proposed solution by running it and comparing its performance against the objective. This is implemented by instructing the LLM to include statements that print the evaluation metric and by having another LLM parse the printed logs to extract the evaluation metric.
-- **Base Solution Selector**: The solution selector picks the most promising solution from the explored options to serve as the starting point for the next iteration of refinement.
+### Self-Reflection Strategy
+This fork introduces a **self-reflection mechanism** to enhance the reasoning of DeepSeek models during inference:
+1. **Critique Phase**: The model reviews its generated code, identifying issues like missing imports, incorrect file paths (e.g., `./submission/submission.csv`), hallucinated methods, or logical errors (e.g., incorrect RMSE calculation).
+2. **Edit Phase**: The model applies minimal edits to fix the identified issues, preserving the original code structure.
 
-By repeatedly applying these steps, AIDE navigates the vast space of possible solutions, progressively refining its approach until it converges on the optimal solution for the given data science problem.
+This two-step self-reflection is a foundational inference-time scaling strategy, enabling the model to iteratively improve its outputs. It serves as a starting point for more advanced techniques, such as chain-of-thought prompting, multi-agent collaboration, or tree-based reasoning augmentation, to further boost the performance of small reasoning models on complex ML tasks.
 
 ![Tree Search Visualization](https://github.com/WecoAI/aideml/assets/8918572/2401529c-b97e-4029-aed2-c3f376f54c3c)
 

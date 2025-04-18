@@ -1,0 +1,28 @@
+name: Lint with Ruff 🐶
+
+on: [ push ]
+
+jobs:
+  lint:
+    runs-on: instadeep-ci
+    container:
+      image: ghcr.io/catthehacker/ubuntu:runner-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Cache Python packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pre-commit-config.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install pre-commit
+        run: pip install pre-commit>=4.0.1
+      - name: Clear pre-commit cache
+        run: pre-commit clean
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure

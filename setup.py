@@ -1,10 +1,12 @@
 from setuptools import find_packages, setup
+
 # import torch
 with open("README.md", "r") as f:
     long_description = f.read()
 
 with open("requirements.txt", "r") as f:
     requirements = f.read().splitlines()
+
 
 setup(
     name="aideml",
@@ -14,7 +16,7 @@ setup(
     description="Autonomous AI for Data Science and Machine Learning",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Wecoai/aideml",
+    url="https://github.com/Asimawad/aide-ds.git",
     packages=find_packages(),
     package_data={
         "aide": [

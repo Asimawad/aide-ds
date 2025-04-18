@@ -1,0 +1,29 @@
+apiVersion: 0.2.3
+builder:
+  context: .
+  dockerfile: ./Dockerfile
+  image: europe-west4-docker.pkg.dev/aichor-prod-dataplane-s6j9/tinkerer-8289ccc77ccb4ed0/image:75030150-73e4-4d32-a5bf-c618704714fa
+kind: AIchorManifest
+name: test
+spec:
+  command: entrypoint.sh /aide-ds/run.sh
+  debug:
+    vscode:
+      enabled: true
+      path: /aichor/code
+      provider: github
+  image: europe-west4-docker.pkg.dev/aichor-prod-dataplane-s6j9/tinkerer-8289ccc77ccb4ed0/image:75030150-73e4-4d32-a5bf-c618704714fa
+  operator: tf
+  types:
+    Worker:
+      count: 1
+      resources:
+        accelerators:
+          gpu:
+            count: 1
+            product: NVIDIA-H100-80GB-HBM3
+            type: gpu
+        cpuLimitRatio: 2
+        cpus: 8
+        ramRatio: 8
+        shmSizeGB: 10
