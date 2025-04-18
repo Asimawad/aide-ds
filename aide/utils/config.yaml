@@ -28,7 +28,7 @@ exec:
 # agent hyperparams
 agent:
   # how many improvement iterations to run
-  steps: 1 #20
+  steps: 20
   # total time available to agent
   time_limit: 3600 #1 hour customised # 24 hrs (purely informational, implementation is user's resp)
   # whether to instruct the agent to use CV (set to 1 to disable)
@@ -44,7 +44,7 @@ agent:
 
   # LLM settings for coding
   code:
-    model: deepseek-r1:latest       #"HuggingFaceTB/SmolLM2-135M-Instruct"
+    model: deepseek-ai/DeepSeek-R1-Distill-Qwen-32B
     # model: gpt-4-turbo
     temp: 0.5
 
@@ -59,4 +59,13 @@ agent:
   search:
     max_debug_depth: 5 
     debug_prob: 0.5
-    num_drafts: 1
+    num_drafts: 5
+
+# W&B Logging Configuration
+wandb:
+  enabled: true             # Set to false to disable W&B logging
+  project: "aide-ds"        # Your W&B project name
+  entity: null              # Your W&B entity (username or team), null uses default
+  run_name: null            # Optional: Set a specific run name, null generates one
+  log_code: true            # Log the generated code for each step
+  log_artifacts: true       # Log best solution code and submission as artifacts

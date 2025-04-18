@@ -25,6 +25,15 @@ logger = logging.getLogger("aide")
 """ these dataclasses are just for type hinting, the actual config is in config.yaml """
 
 
+# <<< ADD WANDB CONFIG DATACLASS >>>
+@dataclass
+class WandbConfig:
+    enabled: bool = True
+    project: str = "aide-ds"
+    entity: str | None = None
+    run_name: str | None = None
+    log_code: bool = True
+    log_artifacts: bool = True
 @dataclass
 class StageConfig:
     model: str
@@ -80,6 +89,7 @@ class Config(Hashable):
 
     exec: ExecConfig
     agent: AgentConfig
+    wandb: WandbConfig
 
 
 def _get_next_logindex(dir: Path) -> int:
@@ -135,8 +145,12 @@ def prep_cfg(cfg: Config):
 
     cfg.log_dir = (top_log_dir / cfg.exp_name).resolve()
     cfg.workspace_dir = (top_workspace_dir / cfg.exp_name).resolve()
-
+    
+    # <<< ADD WANDB RUN NAME GENERATION (optional but good practice) >>>
+    if cfg.wandb.enabled and cfg.wandb.run_name is None:
+         cfg.wandb.run_name = cfg.exp_name # Use the coolname generated name
     # validate the config
+
     cfg_schema: Config = OmegaConf.structured(Config)
     cfg = OmegaConf.merge(cfg_schema, cfg)
 

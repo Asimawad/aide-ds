@@ -3,6 +3,11 @@ import logging
 import shutil
 import sys
 
+try:
+    import wandb
+except ImportError:
+    wandb = None
+
 from . import backend
 
 from .agent import Agent
@@ -120,7 +125,23 @@ def run():
     logger.addHandler(console_handler)
 
     logger.info(f'Starting run "{cfg.exp_name}"')
-
+ # <<< INITIALIZE WANDB RUN >>>
+    wandb_run = None
+    if wandb and cfg.wandb.enabled:
+        try:
+            wandb_run = wandb.init(
+                project=cfg.wandb.project,
+                entity=cfg.wandb.entity, # Can be None
+                name=cfg.wandb.run_name, # Can be None
+                config=OmegaConf.to_container(cfg, resolve=True), # Log the config
+                job_type="aide_run",
+                tags=["aide-ds", cfg.agent.code.model] # Example tags
+            )
+            logger.info(f"W&B Run initialized: {wandb_run.url}")
+        except Exception as e:
+            logger.error(f"Failed to initialize W&B: {e}")
+            wandb_run = None # Ensure it's None if init fails
+    # <<< END INITIALIZE WANDB RUN >>>
     task_desc = load_task_desc(cfg)
     task_desc_str = backend.compile_prompt_to_md(task_desc)
 
@@ -138,6 +159,8 @@ def run():
         task_desc=task_desc,
         cfg=cfg,
         journal=journal,
+        wandb_run=wandb_run
+
     )
 
     interpreter = Interpreter(
@@ -189,15 +212,84 @@ def run():
             subtitle="Press [b]Ctrl+C[/b] to stop the run",
         )
 
-    while global_step <  cfg.agent.steps:    #PLEASE REVISE THIS HARCODED THING
-        agent.step(exec_callback=exec_callback)
-        # on the last step, print the tree
-        if global_step == cfg.agent.steps - 1:
-            logger.info(journal_to_string_tree(journal))
-        save_run(cfg, journal)
-        global_step = len(journal)
-    interpreter.cleanup_session()
+    # while global_step <  cfg.agent.steps:    #PLEASE REVISE THIS HARCODED THING
+    #     agent.step(exec_callback=exec_callback)
+    #     # on the last step, print the tree
+    #     if global_step == cfg.agent.steps - 1:
+    #         logger.info(journal_to_string_tree(journal))
+    #     save_run(cfg, journal)
+    #     global_step = len(journal)
+    # interpreter.cleanup_session()
 
+    # Main loop (Add try...finally to ensure wandb.finish)
+    try: # <<< Add try block
+        while global_step < cfg.agent.steps:
+            # <<< Use the live display >>>
+            # Instead of live() context manager, update it inside the loop
+            # if console_handler.level <= logging.INFO: # Check if INFO level is active for console
+            #    prog.console.print(generate_live()) # Print the live view once per step
+
+            # <<< Pass current step to agent.step for logging >>>
+            agent.step(exec_callback=exec_callback, current_step_number=global_step)
+            # <<< END Pass >>>
+
+            # on the last step, print the tree
+            if global_step == cfg.agent.steps - 1:
+                logger.info(journal_to_string_tree(journal))
+            save_run(cfg, journal) # Save progress locally
+            global_step = len(journal)
+    finally: # <<< Add finally block
+        interpreter.cleanup_session()
+        # <<< LOG FINAL RESULTS AND FINISH WANDB RUN >>>
+        if wandb_run:
+            logger.info("Finishing W&B Run...")
+            try:
+                best_node = journal.get_best_node()
+                if best_node:
+                    # Log best metric to summary
+                    wandb.summary["best_validation_metric"] = best_node.metric.value
+                    wandb.summary["best_node_id"] = best_node.id
+                    wandb.summary["best_node_step"] = best_node.step
+
+                    if cfg.wandb.log_artifacts:
+                         # Log best solution code as artifact
+                         best_code_path = cfg.log_dir / "best_solution.py"
+                         if best_code_path.exists():
+                              artifact_code = wandb.Artifact(f'solution_code_{wandb_run.id}', type='code')
+                              artifact_code.add_file(str(best_code_path))
+                              wandb_run.log_artifact(artifact_code)
+                              logger.info(f"Logged best solution code artifact: {best_code_path}")
+
+                         # Log best submission as artifact
+                         best_submission_path = cfg.workspace_dir / "best_submission" / "submission.csv"
+                         if best_submission_path.exists():
+                              artifact_sub = wandb.Artifact(f'submission_{wandb_run.id}', type='submission')
+                              artifact_sub.add_file(str(best_submission_path))
+                              wandb_run.log_artifact(artifact_sub)
+                              logger.info(f"Logged best submission artifact: {best_submission_path}")
+                         else:
+                              logger.warning("Best submission file not found for W&B artifact logging.")
+
+
+                # Log the final journal as an artifact
+                if cfg.wandb.log_artifacts:
+                    journal_path = cfg.log_dir / "journal.json"
+                    filtered_journal_path = cfg.log_dir / "filtered_journal.json"
+                    if journal_path.exists():
+                        artifact_journal = wandb.Artifact(f'journal_{wandb_run.id}', type='journal')
+                        artifact_journal.add_file(str(journal_path))
+                        if filtered_journal_path.exists():
+                             artifact_journal.add_file(str(filtered_journal_path))
+                        wandb_run.log_artifact(artifact_journal)
+                        logger.info("Logged journal artifact.")
+
+                wandb_run.finish()
+                logger.info("W&B Run finished.")
+            except Exception as e:
+                logger.error(f"Error during W&B finalization: {e}")
+                if wandb_run: # Try finishing again if error occurred before finish
+                    wandb_run.finish()
+        # <<< END LOG FINAL >>>
 
 if __name__ == "__main__":
     run()

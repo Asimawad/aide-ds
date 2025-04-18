@@ -42,7 +42,7 @@ aide data_dir="<path to your data directory>" goal="<describe the agent's goal f
 For example, to run AIDE on the example [house price prediction task](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques/data):
 
 ```bash
-aide data_dir="example_tasks/house_prices" goal="Predict the sales price for each house" eval="Use the RMSE metric between the logarithm of the predicted and observed values."
+aide data_dir="example_tasks/house_prices" goal="Predict the sales price for each house" eval="Use the RMSE metric between the logarithm of the predicted and observed values." agent.code.model=deepseek-r1:latest wandb.project="my-aide-experiments"
 ```
 
 
@@ -50,6 +50,9 @@ aide data_dir="example_tasks/house_prices" goal="Predict the sales price for eac
 
 ```bash
 aide data_dir="/example_tasks/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label."
+
+
+aide data_dir="example_tasks/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." agent.code.model=deepseek-r1:latest wandb.project="my-aide-experiments"
 ```
 Options:
 
