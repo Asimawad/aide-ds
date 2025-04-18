@@ -2,6 +2,7 @@
 # --- Core Agent Dependencies ---
 accelerate>=1.6.0
 backoff
+wandb
 bitsandbytes
 black
 coolname
