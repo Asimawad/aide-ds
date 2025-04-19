@@ -2,10 +2,11 @@ import atexit
 import logging
 import shutil
 import sys
-
+import os
+os.environ['WANDB_API_KEY'] ="8ca0d241dd66f5a643d64a770d61ad066f937c48"
 try:
     import wandb
-    wandb.init(project="asim_awad/aide-ds", entity="my-team")
+    # wandb.init(project="aide-ds", entity="my-team")
 except ImportError:
     wandb = None
 

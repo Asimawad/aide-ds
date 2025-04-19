@@ -1,4 +1,3 @@
-#  Short list of requirements
 # --- Core Agent Dependencies ---
 accelerate>=1.6.0
 backoff

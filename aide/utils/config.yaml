@@ -38,7 +38,7 @@ agent:
   # whether to provide the agent with a preview of the data
   data_preview: True
   # whether to convert system messages into user messages
-  convert_system_to_user: False
+  convert_system_to_user: True
   # whether to obfuscate that we're doing kaggle
   obfuscate: False
 

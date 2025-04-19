@@ -21,7 +21,6 @@ load_dotenv()
 _client: openai.OpenAI = None  # type: ignore
 
 OLLAMA_API_EXCEPTIONS = (
-    # openai.InvalidRequestError,  # Raised for invalid API requests
     openai.AuthenticationError,  # Raised for authentication issues
     openai.APIConnectionError,  # Raised for connection issues
     openai.RateLimitError,  # Raised when rate limits are exceeded
@@ -51,7 +50,8 @@ def query(
     messages = opt_messages_to_list(
         system_message, user_message, convert_system_to_user=convert_system_to_user
     )
-    # func_spec = None # edit this if you find a model that supports using tools
+    func_spec = None # edit this if you find a model that supports using tools
+    t0 = time.time()
     if func_spec is not None:
         _tools = [
             {
@@ -67,9 +67,7 @@ def query(
 
         # force the model the use the function
         _tool_choice = [{"type": "function", "function": {"name": func_spec.name}}]
-
-    t0 = time.time()
-    if func_spec is not None:
+        #  generate output with function call
         completion = backoff_create(
             _client.chat.completions.create,
             OLLAMA_API_EXCEPTIONS,
@@ -78,23 +76,8 @@ def query(
             tool_choice=_tool_choice,
             **filtered_kwargs,
         )
+        choice = completion.choices[0]
 
-    else:
-        completion = backoff_create(
-            _client.chat.completions.create,
-            OLLAMA_API_EXCEPTIONS,
-            messages=messages,
-            **filtered_kwargs,
-        )
-    req_time = time.time() - t0
-
-    choice = completion.choices[0]
-    if func_spec is None:
-        output = choice.message.content
-        with open("output.json", "w") as f:
-            json.dump(messages[0], f, indent=4)
-
-    else:
         assert (
             choice.message.tool_calls
         ), f"function_call is empty, it is not a function call: {choice.message}"
@@ -108,6 +91,20 @@ def query(
                 f"Error decoding the function arguments: {choice.message.tool_calls[0].function.arguments}"
             )
             raise e
+    else:
+        completion = backoff_create(
+            _client.chat.completions.create,
+            OLLAMA_API_EXCEPTIONS,
+            messages=messages,
+            **filtered_kwargs,
+        )
+        req_time = time.time() - t0
+
+        choice = completion.choices[0]
+        output = choice.message.content
+        with open("output.json", "w") as f:
+            json.dump(messages[0], f, indent=4)
+        logger.info(f"output: {output}")
 
     in_tokens = completion.usage.prompt_tokens
     out_tokens = completion.usage.completion_tokens
