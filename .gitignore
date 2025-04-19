@@ -174,3 +174,6 @@ logs
 .trunk
 .qodo
 Datasets/
+Datasets.zip
+Fulld_dataset.zip
+aide/example_tasks/house_prices/
