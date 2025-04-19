@@ -5,6 +5,7 @@ import sys
 
 try:
     import wandb
+    wandb.init(project="asim_awad/aide-ds", entity="my-team")
 except ImportError:
     wandb = None
 
