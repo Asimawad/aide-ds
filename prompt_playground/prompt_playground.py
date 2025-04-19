@@ -399,3 +399,6 @@ if __name__ == "__main__":
 
 # END OF MODIFIED FILE aide-ds/prompt_playground/prompt_playground.py
 
+"""python prompt_playground/prompt_playground.py --model_id='deepseek-ai/deepseek-coder-7b-instruct-v1.5' --prompt_file=prompt_playgro
+und/real_prompt.txt --output_dir="prompt_playground"
+"""

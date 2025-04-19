@@ -20,7 +20,7 @@ python-igraph
 rich
 shutup
 tqdm
-torch>=2.2.0
+torch # --index-url https://download.pytorch.org/whl/cu126
 transformers
 setuptools
 vllm
