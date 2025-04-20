@@ -19,6 +19,8 @@ copy_data: True
 
 exp_name: null # a random experiment name will be generated if not provided
 
+inference_engine: HF
+
 # settings for code execution
 exec:
   timeout: 3600
@@ -28,7 +30,7 @@ exec:
 # agent hyperparams
 agent:
   # how many improvement iterations to run
-  steps: 4
+  steps: 25
   # total time available to agent
   time_limit: 3600 #1 hour customised # 24 hrs (purely informational, implementation is user's resp)
   # whether to instruct the agent to use CV (set to 1 to disable)
@@ -47,6 +49,10 @@ agent:
     model: deepseek-ai/DeepSeek-R1-Distill-Qwen-32B
     # model: gpt-4-turbo
     temp: 0.5
+    max_new_tokens:  3200
+    top_p : 0.9
+    top_k : 50
+    num_return_sequences : 1
 
   # LLM settings for evaluating program output / tracebacks
   feedback:

@@ -12,20 +12,21 @@ logger = logging.getLogger("aide")
 
 
 def determine_provider(model: str) -> str:
+    
     if model.startswith("gpt-") or model.startswith("o1-") or model.startswith("o3-"):
         return "openai"
     # elif model.startswith("deepseek-"):
     #     return "deepseek"
     # all other models are handle by local
     else:
-        return "local"
+        return "HF"
 
 
 provider_to_query_func = {
     "openai": backend_openai.query,
     "vllm": backend_vllm.query,
     "deepseek": backend_deepseek.query,
-    "local": backend_local.query,
+    "HF": backend_local.query,
 }
 
 
@@ -38,6 +39,7 @@ def query(
     max_tokens: int | None = None,
     func_spec: FunctionSpec | None = None,
     convert_system_to_user: bool = False,
+    inference_engine:str|None = "HF",
     local_use: bool = False,
     reasoning_effort: str | None = None,
     **model_kwargs,  # his mean that you can pass model specific keyword arguments as kwargs
@@ -58,14 +60,17 @@ def query(
         OutputType: A string completion if func_spec is None, otherwise a dict with the function call details.
     """
 
-    provider = determine_provider(model)
+    provider = inference_engine if inference_engine else determine_provider(model) 
 
-    model_kwargs = {
+    model_kwargs.update({
         "model": model,
-    }
+    })
 
     # Handle provider-specific parameters
     if provider == "openai" and model.startswith("o3-"):
+        model_kwargs = {
+            "model":model
+        }
         # o3-mini specific parameters
         if max_tokens is not None:
             model_kwargs["max_completion_tokens"] = max_tokens

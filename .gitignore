@@ -20,6 +20,7 @@ reflection_draafts.py
 downloads/
 eggs/
 .eggs/
+finetuning/
 lib/
 lib64/
 parts/

@@ -206,7 +206,21 @@ class Agent:
 
         completion_text = None
         for _ in range(retries):
-            completion_text = query(
+            if self.cfg.inference_engine == "HF" :
+                completion_text = query(
+                system_message=prompt,
+                user_message=None,
+                model=self.acfg.code.model,
+                temperature=self.acfg.code.temp,
+                max_tokens=self.acfg.code.max_new_tokens,
+                top_p=self.acfg.code.top_p,
+                top_k=self.acfg.code.top_k,
+                inference_engine = self.cfg.inference_engine,
+                num_responses=self.acfg.code.num_return_sequences,
+                convert_system_to_user=self.acfg.convert_system_to_user,
+                )
+            else:
+                completion_text = query(
                 system_message=prompt,
                 user_message=None,
                 model=self.acfg.code.model,

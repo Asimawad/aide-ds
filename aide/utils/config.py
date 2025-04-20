@@ -38,6 +38,10 @@ class WandbConfig:
 class StageConfig:
     model: str
     temp: float
+    max_new_tokens:  int
+    top_p : float
+    top_k : int
+    num_return_sequences : int
 
 
 @dataclass
@@ -50,6 +54,7 @@ class SearchConfig:
 @dataclass
 class AgentConfig:
     steps: int
+    
     time_limit: int
     k_fold_validation: int
     expose_prediction: bool
@@ -86,7 +91,9 @@ class Config(Hashable):
     copy_data: bool
 
     exp_name: str
-
+    
+    inference_engine:str
+    
     exec: ExecConfig
     agent: AgentConfig
     wandb: WandbConfig
