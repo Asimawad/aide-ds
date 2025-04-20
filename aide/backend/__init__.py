@@ -1,4 +1,5 @@
 import logging
+from rich.console import Console
 from . import (
     backend_local,
     backend_openai,
@@ -32,6 +33,7 @@ def query(
     system_message: PromptType | None,
     user_message: PromptType | None,
     model: str,
+    num_responses:int = 1,
     temperature: float | None = None,
     max_tokens: int | None = None,
     func_spec: FunctionSpec | None = None,

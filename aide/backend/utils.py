@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
-from typing import Callable
-
+from typing import Callable,Optional, Dict, Any, Tuple
+import re
 import jsonschema
 from dataclasses_json import DataClassJsonMixin
 
@@ -59,6 +59,25 @@ def compile_prompt_to_md(prompt: PromptType, _header_depth: int = 1) -> str:
         out.append(compile_prompt_to_md(v, _header_depth=_header_depth + 1))
     return "\n".join(out)
 
+
+def _split_prompt(system_message: Optional[str], user_message: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    """Split a long system_message into system and user parts if user_message is None."""
+    if user_message or not system_message:
+        return system_message, user_message
+
+    # Heuristic: Split on '# Task description' or similar to isolate task
+    task_match = re.search(r"(# Task description[\s\S]*?)(# Instructions|$)(user|$)", system_message, re.DOTALL)
+    if task_match:
+        system_part = system_message[:task_match.start()]  # Up to task description
+        user_part = task_match.group(1).strip()  # Task description and beyond
+        logger.info("Split system_message into system and user parts")
+        # logger.info(f"system_part: {system_part[:300]}")
+        # logger.info(f"user_part: {user_part[:300]}")
+        return system_part.strip(), user_part
+    else:
+        # Fallback: Use system_message as-is, warn about potential issues
+        logger.warning("Could not split system_message; treating as system prompt only")
+        return system_message, None
 
 @dataclass
 class FunctionSpec(DataClassJsonMixin):

@@ -142,6 +142,7 @@ def generate_code(
     # Note: pipeline might re-load model if not managed carefully, but direct .generate is fine too.
     # Using direct generate here for more control matching backend_local
     inputs = tokenizer(prompt_text, return_tensors="pt", return_attention_mask=True)
+    
     input_ids = inputs["input_ids"].to(model.device)
     attention_mask = inputs["attention_mask"].to(model.device)
 
@@ -165,6 +166,7 @@ def generate_code(
             attention_mask=attention_mask,
             **gen_kwargs
         )
+    
     t1 = time.time()
     logger.info(f"Generation took {t1-t0:.2f} seconds.")
 
@@ -287,7 +289,6 @@ def run_playground(args):
         # Setup workspace for this response's execution
         workspace_dir = response_dir / "workspace"
         if workspace_dir.exists(): # Clean up previous run for this index if any
-            import shutil
             shutil.rmtree(workspace_dir)
         workspace_dir.mkdir(exist_ok=True)
         input_dir = workspace_dir / "input"
@@ -399,6 +400,6 @@ if __name__ == "__main__":
 
 # END OF MODIFIED FILE aide-ds/prompt_playground/prompt_playground.py
 
-"""python prompt_playground/prompt_playground.py --model_id='deepseek-ai/deepseek-coder-7b-instruct-v1.5' --prompt_file=prompt_playgro
-und/real_prompt.txt --output_dir="prompt_playground"
+"""python prompt_playground/prompt_playground.py --model_id='deepseek-ai/deepseek-coder-7b-instruct-v1.5' --prompt_file=prompt_playground/real_prompt.txt --output_dir="prompt_playground"
 """
+# python prompt_playground/prompt_playground.py --model_id='deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B' --prompt_file=prompt_playground/real_prompt.txt --output_dir="prompt_playground"

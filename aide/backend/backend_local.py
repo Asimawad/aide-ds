@@ -1,48 +1,80 @@
 import logging
 import re
-from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import torch
 from typing import Optional, Dict, Any, Tuple
 import os
-from aide.backend.utils import opt_messages_to_list
+import sys
+import shutil
+from pathlib import Path
+import time
+from aide.backend.utils import _split_prompt,opt_messages_to_list
 
-logger = logging.getLogger("aide")
+
 os.environ["TRANSFORMERS_NO_TF"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    BitsAndBytesConfig,
+)
+
+from rich.console import Console
+from rich.syntax import Syntax
+
+
+
+try:
+    from aide.interpreter import Interpreter, ExecutionResult
+    from aide.utils.response import extract_code, format_code, wrap_code
+    from aide.utils import serialize # For saving ExecutionResult
+except ImportError as e:
+    print(f"Error importing AIDE modules: {e}")
+    print("Please ensure AIDE is installed (e.g., `pip install -e .` from aide-ds root) or paths are correct.")
+    sys.exit(1)
+    
+script_dir = Path(__file__).resolve().parent
+project_root = script_dir.parent
+sys.path.insert(0, str(project_root))
+
+
+logger = logging.getLogger("aide")
+console = Console()
+
 class LocalLLMManager:
     _cache = {}  # Cache to store loaded models
 
     @classmethod
     def get_model(cls, model_name: str,load_in_4bit:bool = True) -> Tuple[AutoTokenizer, AutoModelForCausalLM]:
+        
         """Load or retrieve a model from cache with/without 4-bit quantization."""
         if model_name not in cls._cache:
+            cls.clear_cache()
             logger.info(f"Loading local model: {model_name}")
             try:
                 tokenizer = AutoTokenizer.from_pretrained(model_name,trust_remote_code=True)
                 # Set padding token to avoid attention mask issues
                 if tokenizer.pad_token is None:
-                    if tokenizer.eos_token:
-                        tokenizer.pad_token = tokenizer.eos_token
-                        logger.info(f"Set pad_token to eos_token: {tokenizer.eos_token}")
-                    else:
-                        # Add a default pad token if EOS is also missing (less common)
-                        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-                        logger.warning(f"Added default pad_token: {tokenizer.pad_token}")
+                    tokenizer.pad_token = tokenizer.eos_token
+                    logger.info(f"Set pad_token to eos_token: {tokenizer.eos_token}")
 
+                tokenizer.padding_side = "left" # Important for batch generation if ever implemented
                 quantization_config = None
                 if load_in_4bit and torch.cuda.is_available():
                     quantization_config = BitsAndBytesConfig(
-                        load_in_4bit=True,
-                        bnb_4bit_compute_dtype=torch.bfloat16, # Or torch.float16 depending on GPU
-                        # Optional: Add other BNB config options if needed
-                        # bnb_4bit_use_double_quant=True,
-                        # bnb_4bit_quant_type="nf4",
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=torch.bfloat16,
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_quant_type="nf4",
                     )
+                    logger.info("Using 4-bit quantization (BitsAndBytesConfig).")
+
                 model = AutoModelForCausalLM.from_pretrained(
                     model_name,
                     quantization_config=quantization_config, #load unquantized model
-                    attn_implementation="sdpa",
                     device_map="auto",
+                    torch_dtype=torch.bfloat16 if quantization_config else None,
                     trust_remote_code=True,
                 )
                 if load_in_4bit:
@@ -65,124 +97,75 @@ class LocalLLMManager:
         else:
             cls._cache.clear()
             logger.info("Cleared entire model cache")
-
-    @classmethod
-    def _split_prompt(cls, system_message: Optional[str], user_message: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
-        """Split a long system_message into system and user parts if user_message is None."""
-        if user_message or not system_message:
-            return system_message, user_message
-        messages = opt_messages_to_list(
-        system_message, user_message, convert_system_to_user=False
-    )
-        # Heuristic: Split on '# Task description' or similar to isolate task
-        task_match = re.search(r"(# Task description[\s\S]*?)(# Instructions|$)(user|$)", system_message, re.DOTALL)
-        if task_match:
-            system_part = system_message[:task_match.start()]  # Up to task description
-            user_part = task_match.group(1).strip()  # Task description and beyond
-            logger.info("Split system_message into system and user parts")
-            return system_part.strip(), user_part
-        else:
-            # Fallback: Use system_message as-is, warn about potential issues
-            logger.warning("Could not split system_message; treating as system prompt only")
-            return system_message, None
-
     @classmethod
     def generate_response(
         cls,
         model_name: str,
+        prompt:str,
+        tokenizer :AutoTokenizer ,
+        model:AutoModelForCausalLM,
         system_message: Optional[str] = None,
         user_message: Optional[str] = None,
-        temperature: float = 0.6,
-        max_new_tokens: int =131072 ,
-        seq_gen:int=3,
+        num_responses:int = 1,
         **gen_kwargs: Any,
     ) -> Optional[str]:
         """Generate response with proper system/user prompt handling."""
-        tokenizer, model = cls.get_model(model_name)
+        
+        # Check prompt length against model’s max context
+        inputs = tokenizer(prompt, return_tensors="pt",return_attention_mask=True)
+        input_ids= inputs['input_ids'].to(model.device)
+        attention_mask = inputs['attention_mask'].to(model.device)
+        prompt_length = input_ids.shape[1]        
+        
+        gen_kwargs = {
+            "temperature": gen_kwargs.get("temperature", 0.6),
+            "max_new_tokens": gen_kwargs.get("max_new_tokens", 32000),
+            "top_p": gen_kwargs.get("top_p"),
+            "top_k": gen_kwargs.get("top_k"),
+            "repetition_penalty": gen_kwargs.get("repetition_penalty"),
+            "pad_token_id": tokenizer.eos_token_id,
+            "eos_token_id": tokenizer.eos_token_id,
+            "do_sample": gen_kwargs.get("temperature", 0.6) > 0.0,
+            "num_return_sequences": num_responses,
+        }
+        # Filter out None values
+        gen_kwargs      = {k: v for k, v in gen_kwargs.items() if v is not None}
+        
+        t0 = time.time()
+        outputs = []
+        console.rule(f"[bold blue]Generating {num_responses} Responses (Batched)")
+
         try:
-            # Split prompt if needed
-            system_message, user_message = cls._split_prompt(system_message, user_message)
-
-            # Construct messages
-            messages = []
-            if system_message:
-                messages.append({"role": "system", "content": system_message})
-            if user_message:
-                messages.append({"role": "user", "content": user_message})
-            elif not messages:
-                raise ValueError("At least one of system_message or user_message must be provided")
-
-            # Apply chat template
-            if hasattr(tokenizer, "apply_chat_template"):
-                prompt = tokenizer.apply_chat_template(messages, tokenize=False)
-            else:
-                prompt = f"{system_message or ''}\n\n{user_message or ''}".strip()
-
-            # Check prompt length against model’s max context
-            input_ids = tokenizer.encode(prompt, return_tensors="pt")
-            prompt_length = input_ids.size(1)
-            max_model_length = getattr(model.config, "max_position_embeddings")
-            if prompt_length > max_model_length:
-                raise ValueError(
-                    f"Prompt length ({prompt_length} tokens) exceeds model’s max context "
-                    f"({max_model_length} tokens). Use a larger model (e.g., Qwen2-0.5B) or shorten the prompt in agent.py."
-                )
-
-            # Move to device
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            input_ids = input_ids.to(device)
-
-            # Filter valid kwargs
-            valid_generate_kwargs = {
-                "max_length", "max_new_tokens", "min_length", "min_new_tokens",
-                "do_sample", "temperature", "top_k", "top_p", "typical_p",
-                "repetition_penalty", "no_repeat_ngram_size", "num_beams",
-                "num_beam_groups", "diversity_penalty", "length_penalty",
-                "early_stopping", "renormalize_logits", "logits_processor",
-                "output_scores", "return_dict_in_generate", "forced_bos_token_id",
-                "forced_eos_token_id", "output_hidden_states", "output_attentions",
-                "num_return_sequences", "pad_token_id", "bos_token_id",
-                "eos_token_id", "attention_mask", "use_cache"
-            }
-            filtered_kwargs = {k: v for k, v in gen_kwargs.items() if k in valid_generate_kwargs}
-            # if gen_kwargs != filtered_kwargs:
-                # logger.warning(f"Ignored invalid model_kwargs: {set(gen_kwargs) - set(filtered_kwargs)}")
-
             # Generate with attention mask
-            attention_mask = input_ids.ne(tokenizer.pad_token_id).to(device)
-            output = model.generate(
-                input_ids,
-                attention_mask=attention_mask,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-                do_sample=True,
-                pad_token_id=tokenizer.pad_token_id,
-                num_return_sequences=3,
-                # num_beams=5,
-                **filtered_kwargs,
-            )
-            # generated_token_ids = output[0, prompt_length:]
-            all_response_texts = []
-            output_token_counts = []
-            for i in range(seq_gen):
-                # Slice off the input tokens for each sequence
-                generated_token_ids = output[i, prompt_length:]
-                response_text = tokenizer.decode(generated_token_ids, skip_special_tokens=True)
-                all_response_texts.append(response_text.strip())
-                output_token_counts.append(len(generated_token_ids))
+            with torch.no_grad():
+                generated_outputs = model.generate(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    **gen_kwargs,
+                )
+            logger.info("finished generation")
+            # Decode each generated sequence, removing the prompt part
+            for i in range(num_responses):
+                # generated_outputs shape is (num_responses, seq_len)
+                output_ids = generated_outputs[i,prompt_length:]
+                output_text = tokenizer.decode(output_ids, skip_special_tokens=True)
+                outputs.append(output_text.strip())
 
-            # response = tokenizer.decode(generated_token_ids, skip_special_tokens=True)
-            return all_response_texts,output_token_counts
         except Exception as e:
             logger.error(f"Error generating response for {model_name}: {e}")
             raise ValueError(f"Failed to generate response: {str(e)}")
 
+        t1 = time.time()
+        latency = t1-t0
+        logger.info(f"Batch generation of {num_responses} responses took {t1-t0:.2f} seconds.")
+        return outputs,prompt_length,len(output_ids),latency
 def query(
     system_message: Optional[str] = None,
     user_message: Optional[str] = None,
     model: str = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
-    temperature: float = 0.7,
-    max_new_tokens: int = 131072,
+    func_spec=None,
+    convert_system_to_user=False,
+    num_responses:int = 1,
     **model_kwargs: Any,
 ) -> Tuple[Optional[str], float, int, int, Dict[str, Any]]:
     """
@@ -199,19 +182,46 @@ def query(
     Returns:
         Tuple: (response, latency, input_tokens, output_tokens, metadata)
     """
+    print(f"Models Kwargs are {model_kwargs}")
+    tokenizer, model_instance = LocalLLMManager.get_model(model)
+    
+
+    # Split prompt if needed
+    
+    if convert_system_to_user:
+        messages = opt_messages_to_list(
+            system_message, user_message, convert_system_to_user=convert_system_to_user)
+    else:
+        system_message, user_message = _split_prompt(system_message, user_message)
+        messages = opt_messages_to_list(
+            system_message, user_message, convert_system_to_user=convert_system_to_user)
+    # Apply chat template
+    if hasattr(tokenizer, "apply_chat_template"):
+        prompt = tokenizer.apply_chat_template(messages, tokenize=False)
+        logger.info("Applied chat template to prompt.")
+    else:
+        prompt = f"{system_message or ''}\n\n{user_message or ''}".strip()
+    logger.debug(f"Generating with params:  num_return_sequences = {num_responses}, {model_kwargs}")
+    logger.debug(f"_______________________________________________________________________________")
+    # logger.info(f"Input prompt (start):\n{prompt}...")
     try:
-        response,tokens_count = LocalLLMManager.generate_response(
+        responses,input_len,output_len,latency = LocalLLMManager.generate_response(
             model_name=model,
-            system_message=system_message,
-            user_message=user_message,
-            temperature=temperature,
-            max_new_tokens=max_new_tokens,
+            tokenizer=tokenizer, 
+            model=model_instance,
+            prompt=prompt,
+            num_responses =num_responses,
             **model_kwargs,
         )
-        response_text_to_return = response[0] if response else None
-        output_token_count = tokens_count[0] if tokens_count else 0
-        logger.info(f"Generated response: {response[:100]}...")  # Truncate for logging
-        return response_text_to_return, 0.0, 0, output_token_count, {}
+        first_response = responses[0] 
+        print("____________________________")
+        print(responses)
+        # for i,r in enumerate(responses):
+        #     console.rule(f"[bold red]output no {i}")
+            
+
+        # logger.info(f"Generated response: {r}...")  # Truncate for logging
+        return first_response, latency, input_len,output_len, {}
     except Exception as e:
         logger.error(f"Query failed for model {model}: {e}")
-        return None, 0.0, 0, 0, {}
+        return None, latency, input_len,output_len, {}
