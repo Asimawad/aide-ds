@@ -2,6 +2,7 @@ import shutil
 import logging
 import random
 import time
+from rich.console import Console
 from typing import Any, Callable, cast
 from .backend import FunctionSpec, query
 from .interpreter import ExecutionResult
@@ -20,7 +21,7 @@ except ImportError:
 
 logger = logging.getLogger("aide")
 
-
+console = Console()
 def format_time(time_in_sec: int):
     return f"{time_in_sec // 3600}hrs {(time_in_sec % 3600) // 60}mins {time_in_sec % 60}secs"
 
@@ -193,23 +194,39 @@ class Agent:
 
     @property
     def _prompt_resp_fmt(self):
+        fmt = (
+                    "\n\n---\n"
+                    "1) PLAN (plain text, no fences):\n"
+                    "<your step‑by‑step reasoning here>\n\n"
+                    "2) CODE (one fenced Python block):\n"
+                    "```python\n"
+                    "<your python code here>\n"
+                    "```"
+                )
         return {
             "Response format": (
                 "Your response should be a brief outline/sketch of your proposed solution in natural language (3-5 sentences), "
                 "followed by a single markdown code block (wrapped in ```) which implements this solution and prints out the evaluation metric. "
                 "There should be no additional headings or text in your response. Just natural language text followed by a newline and then the markdown code block. "
-            )
+                "explicitly,structure your answer exactly like this: ") + fmt
         }
 
     def plan_and_code_query(self, prompt, retries=3) -> tuple[str, str]:
         """Generate a natural language plan + code in the same LLM call and split them apart."""
-
+        system_prompt = {"SYSTEM":"You are a Kaggle Grandmaster. you can plan , implement, debug and improve and machine learning engineering code," ,
+                         "Possible Questions you will face": "1. you will be asked to either come up with a plan and a code to solve the kaggle competetion, or debug a code or improve a working code to get better results",
+                         "How to answer the user":" Whenever you answer, always:"
+                         " 1. Write a “PLAN:” section in plain text—3–5 concise bullet points."
+                         "2. Then write a “CODE:” section containing exactly one fenced Python block:"
+                         "```python"
+                        }
+   # Your code here
         completion_text = None
         for _ in range(retries):
             if self.cfg.inference_engine == "HF" :
                 completion_text = query(
-                system_message=prompt,
-                user_message=None,
+                system_message=system_prompt,
+                user_message=prompt,
                 model=self.acfg.code.model,
                 temperature=self.acfg.code.temp,
                 max_tokens=self.acfg.code.max_new_tokens,
@@ -221,8 +238,8 @@ class Agent:
                 )
             else:
                 completion_text = query(
-                system_message=prompt,
-                user_message=None,
+                system_message=system_prompt,
+                user_message=prompt,
                 model=self.acfg.code.model,
                 temperature=self.acfg.code.temp,
                 convert_system_to_user=self.acfg.convert_system_to_user,
@@ -275,9 +292,6 @@ class Agent:
 
         if self.acfg.data_preview:
             prompt["Data Overview"] = self.data_preview
-        # print("____________________________________________________\n")
-        # print(f"the currently used Prompt: {compile_prompt_to_md(prompt)}")
-        # print("\n____________________________________________________\n")
 
         plan, code = self.plan_and_code_query(prompt)
         new_node = Node(plan=plan, code=code)
@@ -470,7 +484,6 @@ class Agent:
 
         parent_node = self.search_policy()
         parent_type = "None" if parent_node is None else parent_node.stage_name
-        logger.info(f"Agent step {current_step_number}: Generating code (parent type: {parent_type})")
 
         draft_flag = False
         if parent_node is None:
@@ -483,6 +496,8 @@ class Agent:
         else:
             result_node = self._improve(parent_node)
             node_stage = "improve"
+        console.rule(f"[cyan]Agent Step {current_step_number} - Stage : {node_stage}")
+        logger.info(f"Agent step {current_step_number}: Generating code (parent type: {parent_type})")
 
         # Log plan and initial code *before* reflection
         step_log_data = {
@@ -500,6 +515,7 @@ class Agent:
         reflection_applied = False
         if draft_flag:  # Or based on your reflection strategy
             try:
+                console.rule(f"[cyan]Agent Step {current_step_number} - Stage : Self Reflection")
                 reflection_plan, reflection_code = self.reflect(code=result_node.code)
                 if (
                     reflection_code

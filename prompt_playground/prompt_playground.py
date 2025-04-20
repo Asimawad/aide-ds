@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any, List
 import shutil # Import shutil for file operations
+from pprint import pprint # Import pprint for pretty-printing
 
 import torch
 from transformers import (
@@ -131,6 +132,7 @@ def generate_code(
         # Use apply_chat_template for instruction/chat models
         prompt_text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         logger.info("Applied chat template to prompt.")
+        pprint(prompt_text)
     except Exception as e:
         logger.warning(f"Could not apply chat template (model might not support it or error: {e}). Using basic concatenation.")
         prompt_text = (system_prompt + "\n\n" if system_prompt else "") + user_prompt

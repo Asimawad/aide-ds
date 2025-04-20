@@ -22,6 +22,7 @@ import torch
 from typing import Optional, Dict, Any, Tuple
 import sys
 import shutil
+from pprint import pprint
 from pathlib import Path
 import time
 from aide.backend.utils import _split_prompt,opt_messages_to_list
@@ -136,7 +137,7 @@ class LocalLLMManager:
         
         gen_kwargs = {
             "temperature": gen_kwargs.get("temperature", 0.6),
-            "max_new_tokens": gen_kwargs.get("max_new_tokens", 3200),
+            "max_new_tokens": gen_kwargs.get("max_new_tokens", 512),
             "top_p": gen_kwargs.get("top_p",0.9),
             "top_k": gen_kwargs.get("top_k",50),
             "repetition_penalty": gen_kwargs.get("repetition_penalty"),
@@ -150,7 +151,7 @@ class LocalLLMManager:
         
         t0 = time.time()
         outputs = []
-        console.rule(f"[bold blue]Generating {num_responses} Responses (Batched)")
+        console.rule(f"[bold blue]Generating Responses")
 
         try:
             # Generate with attention mask
@@ -174,7 +175,7 @@ class LocalLLMManager:
 
         t1 = time.time()
         latency = t1-t0
-        logger.info(f"Batch generation of {num_responses} responses took {t1-t0:.2f} seconds.")
+        logger.info(f"Batch generation of {num_responses} responses and {len(output_ids)} tokens took {t1-t0:.2f} seconds.")
         return outputs,prompt_length,len(output_ids),latency
 def query(
     system_message: Optional[str] = None,
@@ -201,23 +202,22 @@ def query(
     """
     print(f"Models Kwargs are {model_kwargs}")
     tokenizer, model_instance = LocalLLMManager.get_model(model)
-    
+    # console.rule(f"[bold blue] Stage 1 ")
+    console.rule(f"[bold red]System Prompt")
+    logger.info(f"{system_message} ")
+    console.rule(f"[bold red]User Prompt")
+    logger.info(f" {user_message} ")
+        
+    messages = opt_messages_to_list(
+        system_message, user_message)
 
-    # Split prompt if needed
-    
-    if convert_system_to_user:
-        messages = opt_messages_to_list(
-            system_message, user_message, convert_system_to_user=convert_system_to_user)
-    else:
-        system_message, user_message = _split_prompt(system_message, user_message)
-        messages = opt_messages_to_list(
-            system_message, user_message, convert_system_to_user=convert_system_to_user)
     # Apply chat template
     if hasattr(tokenizer, "apply_chat_template"):
         prompt = tokenizer.apply_chat_template(messages, tokenize=False)
         logger.info("Applied chat template to prompt.")
     else:
         prompt = f"{system_message or ''}\n\n{user_message or ''}".strip()
+
     logger.debug(f"Generating with params:  num_return_sequences = {num_responses}, {model_kwargs}")
     logger.debug(f"_______________________________________________________________________________")
     # logger.info(f"Input prompt (start):\n{prompt}...")
@@ -228,16 +228,14 @@ def query(
             model=model_instance,
             prompt=prompt,
             num_responses =num_responses,
+            do_sample=False,
             **model_kwargs,
         )
         first_response = responses[0] 
-        print("____________________________")
-        print(responses)
-        # for i,r in enumerate(responses):
-        #     console.rule(f"[bold red]output no {i}")
-            
-
-        # logger.info(f"Generated response: {r}...")  # Truncate for logging
+ 
+        for i,r in enumerate(responses):
+            console.rule(f"[bold red]Response {i}")
+            logger.info(f"Generated response: {r}")
         return first_response, latency, input_len,output_len, {}
     except Exception as e:
         logger.error(f"Query failed for model {model}: {e}")
