@@ -147,39 +147,6 @@ class Agent:
         }
         return env_prompt
 
-    # @property
-    # def _prompt_impl_guideline(self):
-    #     tot_time_elapsed = time.time() - self.start_time
-    #     tot_time_remaining = self.acfg.time_limit - tot_time_elapsed
-    #     exec_timeout = int(min(self.cfg.exec.timeout, tot_time_remaining))
-
-    #     impl_guideline = [
-    #         f"<TOTAL_TIME_REMAINING: {format_time(tot_time_remaining)}>",
-    #         f"<TOTAL_STEPS_REMAINING: {self.acfg.steps - self.current_step}>",
-    #         "The code should **implement the proposed solution**, **print the value of the evaluation metric computed on a hold-out validation set**,",
-    #         "**AND MOST IMPORTANTLY SAVE PREDICTIONS ON THE PROVIDED UNLABELED TEST DATA IN A `submission.csv` FILE IN THE `./submission/` DIRECTORY.**",
-    #         "The code should be a single-file python program that is self-contained and can be executed as-is.",
-    #         "No parts of the code should be skipped, don't terminate the before finishing the script.",
-    #         "Your response should only contain a single code block.",
-    #         f"Be aware of the running time of the code, it should complete within {humanize.naturaldelta(exec_timeout)}.",
-    #         'All the provided input data is stored in "./input" directory.',
-    #         '**You MUST submit predictions on the provided unlabeled test data in a `submission.csv` file** file in the "./submission" directory as described in the task description** This is extremely important since this file is used for grading/evaluation. DO NOT FORGET THE submission.csv file!',
-    #         "You can use the `./working/` directory to store temporary files (e.g., models, intermediate data), but the final `submission.csv` MUST be in `./submission/`.",
-    #         "REMEMBER THE `./submission/submission.csv` FILE!!!!! The correct directory is critical for evaluation.",
-    #     ]
-    #     if self.acfg.expose_prediction:
-    #         impl_guideline.append(
-    #             "The implementation should include a predict() function, "
-    #             "allowing users to seamlessly reuse the code to make predictions on new data. "
-    #             "The prediction function should be well-documented, especially the function signature."
-    #         )
-
-    #     if self.acfg.k_fold_validation > 1:
-    #         impl_guideline.append(
-    #             f"The evaluation should be based on {self.acfg.k_fold_validation}-fold cross-validation but only if that's an appropriate evaluation for the task at hand."
-    #         )
-
-    #     return {"Implementation guideline": impl_guideline}
     @property
     def _prompt_impl_guideline(self):
         impl_guideline = [

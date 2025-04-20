@@ -6,6 +6,7 @@ from . import (
     backend_vllm,
     backend_deepseek,
 )
+from pathlib import Path
 from .utils import FunctionSpec, OutputType, PromptType, compile_prompt_to_md
 
 logger = logging.getLogger("aide")
@@ -85,7 +86,7 @@ def query(
 
     # Include any additional model-specific keyword arguments
     model_kwargs.update(model_kwargs)
-    print(model_kwargs)
+    logger.info(f"Models Arguments are {model_kwargs}")
     logger.info("---Querying model---", extra={"verbose": True})
     system_message = compile_prompt_to_md(system_message) if system_message else None
     if system_message:
@@ -99,14 +100,19 @@ def query(
     provider = determine_provider(model)
 
     query_func = provider_to_query_func[provider]
-    output, req_time, in_tok_count, out_tok_count, info = query_func(
+    
+    query_output_dir = Path("./query_outputs/some_run_id/step_x") # Example
+    step_id = "draft_0" # Example
+    # output, req_time, in_tok_count, out_tok_count, info 
+    raw_responses, extracted_codes, execution_results, latency, input_token_count, output_token_count, info= query_func(
         system_message=system_message,
         user_message=user_message,
         func_spec=func_spec,
         convert_system_to_user=convert_system_to_user,
+        step_identifier=step_id,
         **model_kwargs,
     )
-    logger.info(f"response: {output}", extra={"verbose": True})
+    logger.info(f"response: {raw_responses}", extra={"verbose": True})
     logger.info("---Query complete---", extra={"verbose": True})
-
-    return output
+    # logger.info(f"type of code {extracted_codes[0]} , and type of excution result {execution_results[0]}")
+    return raw_responses[0]
