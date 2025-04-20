@@ -122,13 +122,13 @@ class LocalLLMManager:
         
         gen_kwargs = {
             "temperature": gen_kwargs.get("temperature", 0.6),
-            "max_new_tokens": gen_kwargs.get("max_new_tokens", 512),
+            "max_new_tokens": gen_kwargs.get("max_new_tokens", 2048),
             "top_p": gen_kwargs.get("top_p",0.9),
             "top_k": gen_kwargs.get("top_k",50),
             "repetition_penalty": gen_kwargs.get("repetition_penalty"),
             "pad_token_id": tokenizer.eos_token_id,
             "eos_token_id": tokenizer.eos_token_id,
-            "do_sample": gen_kwargs.get("temperature", 0.6) > 0.0,
+            "do_sample": gen_kwargs.get("do_sample", True) ,
             "num_return_sequences": num_responses,
         }
         # Filter out None values
