@@ -79,13 +79,13 @@ def query(
     else:
         # Standard parameters for other models
         if max_tokens is not None:
-            model_kwargs["max_tokens"] = max_tokens
+            model_kwargs["max_new_tokens"] = max_tokens
         if temperature is not None:
             model_kwargs["temperature"] = temperature
 
     # Include any additional model-specific keyword arguments
     model_kwargs.update(model_kwargs)
-
+    print(model_kwargs)
     logger.info("---Querying model---", extra={"verbose": True})
     system_message = compile_prompt_to_md(system_message) if system_message else None
     if system_message:

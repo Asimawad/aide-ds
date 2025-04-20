@@ -1,23 +1,5 @@
 import os
 import logging
-
-# 1. Turn off HF‑hub / safetensors tqdm bars entirely
-os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
-
-# 2. Silence the 🤗 transformers logger (only real errors from here on)
-from transformers import logging as hf_logging
-hf_logging.set_verbosity_error()
-hf_logging.disable_progress_bar()
-
-# 3. Silence bitsandbytes (if you’re using it)
-bnb_logger = logging.getLogger("bitsandbytes")
-bnb_logger.setLevel(logging.ERROR)
-
-# 4. Silence TensorFlow’s chatter (if it sneaks in)
-tf_logger = logging.getLogger("tensorflow")
-tf_logger.setLevel(logging.ERROR)
-
 import torch
 from typing import Optional, Dict, Any, Tuple
 import sys
@@ -27,6 +9,9 @@ from pathlib import Path
 import time
 from aide.backend.utils import _split_prompt,opt_messages_to_list
 
+# 1. Turn off HF‑hub / safetensors tqdm bars entirely
+os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 
 os.environ["TRANSFORMERS_NO_TF"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
