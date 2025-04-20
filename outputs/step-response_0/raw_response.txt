@@ -1,0 +1,163 @@
+]
+
+So, the task is to predict the author of a sentence as one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three. The task is to predict the author of each sentence.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each sentence is a string. Each sentence is associated with an author, which is one of the three: EAP, HPL, or MWS.
+
+The input is a text file containing sentences, each

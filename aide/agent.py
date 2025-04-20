@@ -13,7 +13,7 @@ from .utils.metric import MetricValue, WorstMetricValue
 from .utils.response import extract_code, extract_text_up_to_code, wrap_code,trim_long_string
 from .utils.self_reflection import perform_two_step_reflection  # Adjust path if needed
 from pathlib import Path # <<< Add Path import
-
+import os
 try:
     import wandb
 except ImportError:
@@ -414,63 +414,6 @@ class Agent:
         self,
     ):
         self.data_preview = data_preview.generate(self.cfg.workspace_dir)
-
-    # def step(self, exec_callback: ExecCallbackType):
-    #     # clear the submission dir from previous steps
-    #     shutil.rmtree(self.cfg.workspace_dir / "submission", ignore_errors=True)
-    #     (self.cfg.workspace_dir / "submission").mkdir(exist_ok=True)
-
-    #     if not self.journal.nodes or self.data_preview is None:
-    #         self.update_data_preview()
-
-    #     parent_node = self.search_policy()
-    #     logger.info(f"Agent is generating code, parent node type: {type(parent_node)}")
-    #     draft_flag = False
-    #     if parent_node is None:
-    #         draft_flag = True
-    #         result_node = self._draft()
-    #     elif parent_node.is_buggy:
-    #         result_node = self._debug(parent_node)
-    #     else:
-    #         result_node = self._improve(parent_node)
-
-    #     # handle final cases where we missed buggy nodes somehow
-    #     if not result_node.is_buggy:
-    #         if not (self.cfg.workspace_dir / "submission" / "submission.csv").exists():
-    #             result_node.is_buggy = True
-    #             result_node.metric = WorstMetricValue()
-    #             logger.info(
-    #                 f"Actually, node {result_node.id} did not produce a submission.csv"
-    #             )
-    #     self.journal.append(result_node)
-
-    #     # if the result_node is the best node, cache its submission.csv and solution.py
-    #     # to best_solution/ by copying it there
-    #     best_node = self.journal.get_best_node()
-    #     if best_node is not None:
-    #         if best_node.id == result_node.id:
-    #             logger.info(f"Node {result_node.id} is the best node so far")
-    #             best_solution_dir = self.cfg.workspace_dir / "best_solution"
-    #             best_solution_dir.mkdir(exist_ok=True, parents=True)
-    #             # copy submission/submission.csv to best_submission/submission.csv
-    #             best_submission_dir = self.cfg.workspace_dir / "best_submission"
-    #             best_submission_dir.mkdir(exist_ok=True, parents=True)
-    #             shutil.copy(
-    #                 self.cfg.workspace_dir / "submission" / "submission.csv",
-    #                 best_submission_dir,
-    #             )
-    #             # copy solution.py and relevant node id to best_solution/
-    #             with open(best_solution_dir / "solution.py", "w") as f:
-    #                 f.write(result_node.code)
-    #             # take note of the node id of the best node
-    #             with open(best_solution_dir / "node_id.txt", "w") as f:
-    #                 f.write(str(result_node.id))
-    #         else:
-    #             logger.info(f"Node {result_node.id} is not the best node")
-    #             logger.info(f"Node {best_node.id} is still the best node")
-    #     self.current_step += 1
-
-#__________________________________________
 
     # <<< MODIFY step() method >>>
     def step(self, exec_callback: ExecCallbackType, current_step_number: int): # Add current_step_number

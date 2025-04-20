@@ -16,7 +16,7 @@ os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 os.environ["TRANSFORMERS_NO_TF"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-
+# current_step = os.environ['Current_Agent_Step']
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -204,8 +204,10 @@ def query(
         prompt = f"{system_message or ''}\n\n{user_message or ''}".strip()
 
     logger.debug(f"Generating with params:  num_return_sequences = {num_responses}, {model_kwargs}")
-    logger.debug(f"_______________________________________________________________________________")
-    # logger.info(f"Input prompt (start):\n{prompt}...")
+    # output_base_dir = Path(args.output_dir)
+    
+    output_base_dir = script_dir.parent.parent/"outputs"
+    output_base_dir.mkdir(parents=True, exist_ok=True)
     try:
         responses,input_len,output_len,latency = LocalLLMManager.generate_response(
             model_name=model,
@@ -218,10 +220,88 @@ def query(
         )
         first_response = responses[0] 
  
-        for i,r in enumerate(responses):
-            console.rule(f"[bold red]Response {i}")
-            logger.info(f"Generated response: {r}")
-        return first_response, latency, input_len,output_len, {}
+        for i,response in enumerate(responses):
+            # console.rule(f"[bold red]Response {i}")
+            console.rule(f"[bold blue]Processing Response {i+1}/{num_responses} for step")
+            response_dir = output_base_dir / f"step-response_{i}"
+            response_dir.mkdir(exist_ok=True)
+            
+            #creating a workspace for this response
+            workspace_dir = response_dir / "workspace"
+            if workspace_dir.exists(): # Clean up previous run for this index if any
+                shutil.rmtree(workspace_dir)
+                  # Save Raw Response
+            raw_response_path = response_dir / "raw_response.txt"
+            raw_response_path.write_text(response)
+            logger.info(f"Raw response saved to: {raw_response_path}")
+            console.print(f"[bold cyan]Raw Response {i+1}:[/bold cyan]")
+            logger.info(f"Generated response: {response}")
+            console.print(responses[:1000] + ("..." if len(responses) > 1000 else ""))
+            console.print("-" * 20)
+            
+            
+            
+            # Extract and Save Code
+            extracted_code = extract_code(response)
+            if not extracted_code:
+                logger.error(f"Response {i+1}: Could not extract valid Python code.")
+                console.print(f"[bold red]Response {i+1}: Code extraction FAILED.[/bold red]")
+                # Create an empty execution log
+                exec_log_path = response_dir / "execution_log.json"
+                error_result = ExecutionResult(term_out=["Code extraction failed."], exec_time=0, exc_type="ExtractionError")
+                try:
+                    serialize.dump_json(error_result, exec_log_path)
+                except Exception as e:
+                    exec_log_path.with_suffix(".txt").write_text(str(error_result))
+                continue # Skip execution for this response
+            formatted_extracted_code = format_code(extracted_code)
+            code_path = response_dir / "extracted_code.py"
+            code_path.write_text(formatted_extracted_code)
+            logger.info(f"Extracted code saved to: {code_path}")
+            console.print(f"[bold green]Extracted Code {i+1}:[/bold green]")
+            console.print(Syntax(formatted_extracted_code, "python", theme="default", line_numbers=True))
+            console.print("-" * 20)
+                  # Execute code
+        logger.info(f"Executing code for response {i+1}...")
+        interpreter = Interpreter(
+            working_dir=workspace_dir,
+            timeout=20
+        )
+        try:
+            exec_result: ExecutionResult = interpreter.run(formatted_extracted_code, reset_session=True)
+        except Exception as e:
+             logger.error(f"Interpreter failed for response {i+1}: {e}", exc_info=True)
+             exec_result = ExecutionResult(term_out=[f"Interpreter Error: {e}"], exec_time=0, exc_type=type(e).__name__)
+        finally:
+            # Ensure interpreter process is cleaned up even if run fails
+            try:
+                interpreter.cleanup_session()
+            except Exception as e_clean:
+                 logger.error(f"Error cleaning up interpreter for response {i+1}: {e_clean}")
+
+            # Save execution result
+            exec_log_path = response_dir / "execution_log.json"
+            try:
+                serialize.dump_json(exec_result, exec_log_path)
+                logger.info(f"Execution log saved to: {exec_log_path}")
+            except Exception as e:
+                logger.error(f"Failed to save execution log: {e}")
+                exec_log_path.with_suffix(".txt").write_text(str(exec_result))
+
+            # Print execution summary
+            console.print(f"[bold magenta]Execution Result {i+1}:[/bold magenta]")
+            console.print(f"  Success: {exec_result.exc_type is None}")
+            console.print(f"  Execution Time: {exec_result.exec_time:.2f}s")
+            if exec_result.exc_type:
+                console.print(f"  Error Type: [bold red]{exec_result.exc_type}[/bold red]")
+            console.print(f"  Terminal Output (preview):")
+            # Ensure term_out is treated as a list of strings
+            term_out_str = "\n".join(exec_result.term_out) if isinstance(exec_result.term_out, list) else str(exec_result.term_out)
+            console.print("[dim]" + term_out_str[:500] + ("\n..." if len(term_out_str) > 500 else "") + "[/dim]")
+            console.print(f"  Full output/logs saved in: {response_dir}")
+            console.print("-" * 20)
+
+            return first_response, latency, input_len,output_len, {}
     except Exception as e:
         logger.error(f"Query failed for model {model}: {e}")
         return None, latency, input_len,output_len, {}
