@@ -4,21 +4,18 @@ import re
 import time
 import os
 from typing import Optional, Dict, Any, Tuple
-import openai # <<< KEEP: Essential for talking to the OpenAI-compatible API endpoint.
-from omegaconf import OmegaConf # <<< KEEP (Optional): Only needed for set_vllm_config. If config is static/env var based, could remove.
+import openai 
+from omegaconf import OmegaConf
 
-# <<< KEEP: Needed utilities. Ensure backoff_create handles the right VLLM_API_EXCEPTIONS >>>
 from aide.backend.utils import OutputType, opt_messages_to_list, backoff_create
 
-logger = logging.getLogger("aide") # <<< KEEP: Standard logging.
+logger = logging.getLogger("aide") 
 
-_client: openai.OpenAI = None  # type: ignore # <<< KEEP: Holds the initialized client.
-_vllm_config: dict = { # <<< KEEP: Good way to store connection details.
-    "base_url": os.getenv("VLLM_BASE_URL", "http://localhost:8000/v1"), # Default is good.
-    "api_key": os.getenv("VLLM_API_KEY", "EMPTY"), # Default 'EMPTY' is common for local vLLM.
-}
+_client: openai.OpenAI = None 
+_vllm_config: dict = { 
+    "base_url": os.getenv("VLLM_BASE_URL", "http://localhost:8000/v1"), 
+    "api_key": os.getenv("VLLM_API_KEY", "EMPTY"), }
 
-# <<< KEEP: Defines appropriate exceptions for network/API issues for backoff_create. >>>
 VLLM_API_EXCEPTIONS = (
     openai.APIConnectionError,
     openai.RateLimitError,
@@ -42,7 +39,7 @@ def _setup_vllm_client(): # <<< KEEP: Correctly initializes the OpenAI client on
             logger.error(f"Failed to setup vLLM client: {e}")
             raise
 
-# <<< KEEP (Optional): Only needed if you configure base_url/api_key via a central OmegaConf object passed to it. Remove if config is purely via env vars or static. >>>
+# Only needed if you configure base_url/api_key via a central OmegaConf object passed to it. Remove if config is purely via env vars or static. >>>
 def set_vllm_config(cfg: OmegaConf):
     """Update vLLM config from OmegaConf."""
     global _vllm_config
@@ -52,22 +49,7 @@ def set_vllm_config(cfg: OmegaConf):
             "api_key": cfg.vllm.get("api_key", _vllm_config["api_key"]),
         })
     logger.info(f"Updated vLLM config: base_url={_vllm_config['base_url']}")
-
-# <<< KEEP (Optional): This helps with models that might mishandle long system prompts via the API. Test if removing it breaks specific models. If models work fine without it, removing simplifies things. >>>
-def _split_prompt(system_message: Optional[str], user_message: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
-    """Split a long system_message into system and user parts if user_message is None."""
-    if user_message or not system_message:
-        return system_message, user_message
-    # Heuristic split based on common markdown structure in AIDE prompts
-    task_match = re.search(r"(# Task description[\s\S]*?)(# Instructions|$)", system_message, re.DOTALL)
-    if task_match:
-        system_part = system_message[:task_match.start()].strip()
-        user_part = task_match.group(1).strip()
-        logger.info("Split system_message into system and user parts")
-        return system_part, user_part
-    logger.warning("Could not split system_message; treating as system prompt only")
-    return system_message, None
-
+    
 def query(
     system_message: Optional[str] = None,
     user_message: Optional[str] = None,
@@ -81,14 +63,12 @@ def query(
     """
     Query a vLLM-hosted model using OpenAI-compatible API.
     """
-    _setup_vllm_client() # <<< KEEP
+    _setup_vllm_client() 
 
     # Split prompt if needed (conditionally kept)
-    system_message, user_message = _split_prompt(system_message, user_message) # <<< KEEP (Conditional)
-
+    
     # Prepare messages list for OpenAI API format
-    # Note: convert_system_to_user is likely False here as vLLM/OpenAI API handles system role
-    messages = opt_messages_to_list(system_message, user_message, convert_system_to_user=False) # <<< KEEP
+    messages = opt_messages_to_list(system_message, user_message, convert_system_to_user=False) # 
 
     # Filter kwargs and map to OpenAI API names
     # Include common parameters vLLM's OpenAI endpoint accepts
@@ -114,7 +94,7 @@ def query(
          logger.warning(f"Ignored invalid or unmapped model_kwargs for vLLM API backend: {ignored_kwargs}")
 
     # Perform API call
-    t0 = time.time() # <<< KEEP
+    t0 = time.time() 
     try:
         # Use backoff_create for retries on API errors
         completion = backoff_create(
@@ -130,10 +110,8 @@ def query(
         return f"ERROR: {e}", time.time() - t0, 0, 0, {"error": str(e)}
 
 
-    req_time = time.time() - t0 # <<< KEEP
-
+    req_time = time.time() - t0 
     # Process response
-    # <<< KEEP: Standard processing for OpenAI compatible responses >>>
     if not completion or not completion.choices:
          logger.error("vLLM API call returned empty or invalid completion object.")
          return "ERROR: Invalid API response", req_time, 0, 0, {"error": "Invalid API response"}
@@ -155,8 +133,6 @@ def query(
     }
 
     return output, req_time, input_tokens, output_tokens, info
-
-
 
 
 

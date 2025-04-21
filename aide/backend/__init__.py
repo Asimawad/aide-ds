@@ -38,7 +38,7 @@ def query(
     max_tokens: int | None = None,
     func_spec: FunctionSpec | None = None,
     convert_system_to_user: bool = False,
-    inference_engine:str|None = "openai",
+    inference_engine:str|None = cfg.inference_engine,
     excute: bool = False,
     current_step:int=0,
     reasoning_effort: str | None = None,
@@ -59,8 +59,10 @@ def query(
     Returns:
         OutputType: A string completion if func_spec is None, otherwise a dict with the function call details.
     """
-
-    provider = determine_provider(model) 
+    if inference_engine == "vllm":
+        provider = "vllm"
+    else:
+        provider = determine_provider(model) 
 
     model_kwargs.update({
         "model": model,
@@ -76,7 +78,7 @@ def query(
             model_kwargs["max_completion_tokens"] = max_tokens
         if reasoning_effort:
             model_kwargs["reasoning_effort"] = reasoning_effort
-    else:
+    elif provider == "HF":
         # Standard parameters for other models
         if max_tokens is not None:
             model_kwargs["max_new_tokens"] = max_tokens
@@ -94,8 +96,6 @@ def query(
     if func_spec:
         logger.info(f"function spec: {func_spec.to_dict()}", extra={"verbose": True})
 
-    provider = determine_provider(model)
-
     query_func = provider_to_query_func[provider]
     
     step_id = f"Draft_{current_step}" # Example
@@ -106,7 +106,6 @@ def query(
         func_spec=func_spec,
         convert_system_to_user=convert_system_to_user,
         step_identifier=step_id,
-        excute = excute,
         **model_kwargs,
     )
     logger.info(f"response: {raw_responses}", extra={"verbose": True})

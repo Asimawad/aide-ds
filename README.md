@@ -52,7 +52,36 @@ aide data_dir="example_tasks/house_prices" goal="Predict the sales price for eac
 aide data_dir="aide/example_tasks/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." agent.code.model=deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
 
 
+### To use vllm for inference
+.aide-ds/bin/python -m vllm.entrypoints.openai.api_server \
+    --model deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B \
+    --port 8000 \
+    --dtype bfloat16 \
+    --device cuda &
+
+
+aide data_dir="aide/example_tasks/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." agent.code.model="Qwen/Qwen2-0.5B-Instruct" agent.steps=1 inference_engine=vllm
+
+
 aide data_dir="example_tasks/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." agent.code.model=deepseek-r1:latest wandb.project="my-aide-experiments"
+```
+
+
+
+## Arial-Cactus
+# Ensure you are in the directory ABOVE 'aerial-cactus-identification'
+# OR adjust data_dir accordingly if running from elsewhere.
+
+# Activate your environment first, e.g.: source .aide-ds/bin/activate
+```bash
+aide data_dir="data/aerial-cactus-identification" \
+     goal="Create a classifier capable of predicting whether an aerial image contains a cactus" \
+     eval="Area under the ROC curve (AUC)" \
+     agent.code.model=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B \
+     agent.steps=20 \
+     agent.code.max_new_tokens=4096 \
+     agent.code.temp=0.6 \
+     wandb.project="aide-cactus-identification" 
 ```
 Options:
 
