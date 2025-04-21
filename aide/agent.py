@@ -536,7 +536,7 @@ class Agent:
 
 
         self.journal.append(result_node)
-        
+         
 
         # Log best solution artifacts *immediately* when a new best is found
         best_node = self.journal.get_best_node()
