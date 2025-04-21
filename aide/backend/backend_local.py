@@ -238,7 +238,7 @@ def query(
         input_token_count = input_len
         # For consistency, report output tokens of the first response, or sum if needed elsewhere
         output_token_count = output_len_first
-        
+        excute = False
         if excute:   
             exec_timeout = model_kwargs.get("exec_timeout", 20) # Default 20s
             info = process_and_execute_responses(
@@ -268,7 +268,7 @@ def process_and_execute_responses(
         responses: List[str],
         output_base_dir: Path,
         interpreter_timeout: int = 20,  # Default timeout
-        main_workspace_dir: Path = cfg.workspace_dir,
+        main_workspace_dir: Path = ".",
         step_identifier: str = "step"  # Identifier for subdirs
     ) -> Dict[str, Any]:
 
@@ -354,11 +354,11 @@ def process_and_execute_responses(
                     exc_info={'error': str(e)},
                     exc_stack=traceback.extract_tb(e.__traceback__)
                     )
-            finally:
-                try:
-                    interpreter.cleanup_session()
-                except Exception as e_clean:
-                    logger.error(f"Error cleaning up interpreter for response {i+1}: {e_clean}")
+            # finally:
+            #     # try:
+            #     #     interpreter.cleanup_session()
+            #     except Exception as e_clean:
+            #         logger.error(f"Error cleaning up interpreter for response {i+1}: {e_clean}")
         elif not extracted_code and response:
              # Already created error result for extraction failure
              pass
