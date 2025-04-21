@@ -59,7 +59,7 @@ def query(
     Returns:
         OutputType: A string completion if func_spec is None, otherwise a dict with the function call details.
     """
-    if inference_engine == "vllm":
+    if inference_engine == "vllm" and not model.startswith("o3-"):
         provider = "vllm"
     else:
         provider = determine_provider(model) 

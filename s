@@ -17,15 +17,21 @@ More specifically, AIDE has the following features:
 # How to use AIDE?
 ## Setup
 
+
+uv venv --python python3.11.11 test-venv
+source test-venv/bin/activate
+uv pip install -e .
+python -m vllm.entrypoints.openai.api_server --model Qwen/Qwen2-0.5B-Instruct --port 8000
+
 Make sure you have uv and `Python>=3.11` installed and run:
 ```bash
-uv venv .aide-ds --python 3.11 
+uv venv --python python3.11 .aide-ds
 source .aide-ds/bin/activate
 uv pip install -e .
 ```
 Also install `unzip` to allow the agent to autonomously extract your data.
 
-Set up your OpenAI API key:
+Set up your OpenAI (or Anthropic) API key:
 
 ```bash
 export OPENAI_API_KEY=<your API key>
@@ -42,47 +48,9 @@ aide data_dir="<path to your data directory>" goal="<describe the agent's goal f
 For example, to run AIDE on the example [house price prediction task](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques/data):
 
 ```bash
-aide data_dir="example_tasks/house_prices" goal="Predict the sales price for each house" eval="Use the RMSE metric between the logarithm of the predicted and observed values." agent.code.model=deepseek-r1:latest wandb.project="my-aide-experiments"
+aide data_dir="example_tasks/house_prices" goal="Predict the sales price for each house" eval="Use the RMSE metric between the logarithm of the predicted and observed values." agent.code.model=o3-mini
 ```
 
-
-### And here’s your model-friendly prompt-style instruction:
-
-```bash
-aide data_dir="aide/example_tasks/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." agent.code.model=deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
-
-
-### To use vllm for inference
-.aide-ds/bin/python -m vllm.entrypoints.openai.api_server \
-    --model deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B \
-    --port 8000 \
-    --dtype bfloat16 \
-    --device cuda &
-
-
-aide data_dir="aide/example_tasks/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." agent.code.model="Qwen/Qwen2-0.5B-Instruct" agent.steps=1 inference_engine=vllm
-
-
-aide data_dir="example_tasks/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." agent.code.model=deepseek-r1:latest wandb.project="my-aide-experiments"
-```
-
-
-
-## Arial-Cactus
-# Ensure you are in the directory ABOVE 'aerial-cactus-identification'
-# OR adjust data_dir accordingly if running from elsewhere.
-
-# Activate your environment first, e.g.: source .aide-ds/bin/activate
-```bash
-aide data_dir="data/aerial-cactus-identification" \
-     goal="Create a classifier capable of predicting whether an aerial image contains a cactus" \
-     eval="Area under the ROC curve (AUC)" \
-     agent.code.model=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B \
-     agent.steps=20 \
-     agent.code.max_new_tokens=4096 \
-     agent.code.temp=0.6 \
-     wandb.project="aide-cactus-identification" 
-```
 Options:
 
 - `data_dir` (required): a directory containing all the data relevant for your task (`.csv` files, images, etc.).
@@ -163,29 +131,9 @@ By repeatedly applying these steps, AIDE navigates the vast space of possible so
 
 ![Tree Search Visualization](https://github.com/WecoAI/aideml/assets/8918572/2401529c-b97e-4029-aed2-c3f376f54c3c)
 
+## Solution Gallery
 
-
-
-
-```bash
-
-aide data_dir="aide/example_tasks/spooky-author-identification" \
-      goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" \
-      eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." \
-      agent.code.model=deepseek-ai/DeepSeek-R1-Distill-Qwen-14B \
-      agent.steps=1 \
-      agent.code.max_new_tokens=2048 \
-      exec.timeout=600 \
-      agent.code.temp=0.6 \
-      inference_engine=vllm
-
-
-
-
-.aide-ds/bin/python -m vllm.entrypoints.openai.api_server \
-    --model deepseek-ai/DeepSeek-R1-Distill-Qwen-14B \
-    --port 8000 \
-    --dtype bfloat16 \
-    --device cuda &
-    
-```
+| Domain                           | Task                                                                    | Top%  | Solution Link                                                     | Competition Link                                                                                   |
+|:---------------------------------|:------------------------------------------------------------------------|:------|:------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------|
+| Urban Planning                   | Forecast city bikeshare system usage                                    | 5%    | [link](sample_results/bike-sharing-demand.py)                           | [link](https://www.kaggle.com/competitions/bike-sharing-demand/overview)                           |
+| Physics                          | Predicting Critical 
