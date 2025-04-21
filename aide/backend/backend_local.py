@@ -252,7 +252,7 @@ def query(
         logger.error(f"Query failed for model {model}: {e}", exc_info=True)
         info["error"] = str(e)
         # Ensure return types match even on failure
-        raw_responses = None
+        raw_responses = "None"
         latency = time.time() - t0 # Total query time including processing/execution
         logger.info(f"Total query latency (incl. processing/exec): {latency:.2f}s")
         return raw_responses,latency, input_token_count, output_token_count, info
