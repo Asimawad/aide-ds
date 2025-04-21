@@ -267,7 +267,7 @@ class Agent:
         if self.acfg.data_preview:
             prompt["Data Overview"] = self.data_preview
 
-        plan, code ,execution_summary = self.plan_and_code_query(prompt, excute=True)
+        plan, code ,execution_summary = self.plan_and_code_query(prompt, excute=False)
         formatted_extracted_code = format_code(code)
         
         if formatted_extracted_code:
