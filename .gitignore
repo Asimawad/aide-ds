@@ -59,6 +59,7 @@ coverage.xml
 .pytest_cache/
 cover/
 aide/backend/vlm2.py
+playground_outputs/*
 # Translations
 *.mo
 *.pot
