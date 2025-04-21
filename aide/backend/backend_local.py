@@ -157,6 +157,7 @@ class LocalLLMManager:
                 output_ids = generated_outputs[i,prompt_length:]
                 output_text = tokenizer.decode(output_ids, skip_special_tokens=True)
                 outputs.append(output_text.strip())
+                output = output_text.strip()
 
         except Exception as e:
             logger.error(f"Error generating response for {model_name}: {e}")
@@ -165,7 +166,7 @@ class LocalLLMManager:
         t1 = time.time()
         latency = t1-t0
         logger.info(f"Batch generation of {num_responses} responses and {len(output_ids)} tokens took {t1-t0:.2f} seconds.")
-        return outputs,prompt_length,len(output_ids),latency
+        return output,prompt_length,len(output_ids),latency
     
 def query(
     system_message: Optional[str] = None,
@@ -262,7 +263,7 @@ def query(
         logger.info(f"Total query latency (incl. processing/exec): {latency:.2f}s")
 
     # Return all collected results
-    return raw_responses[0],latency, input_token_count, output_token_count, info
+    return raw_responses,latency, input_token_count, output_token_count, info
 
 def process_and_execute_responses(
         responses: List[str],

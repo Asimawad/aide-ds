@@ -193,7 +193,7 @@ class Agent:
         execution_summary= None
         for _ in range(retries):
             if self.cfg.inference_engine == "HF" and self.acfg.code.model != "o3-mini" :
-                completion_text, execution_summary = query(
+                completion_text = query(
                 system_message=system_prompt,
                 user_message=prompt,
                 model=self.acfg.code.model,
@@ -208,7 +208,7 @@ class Agent:
                 convert_system_to_user=self.acfg.convert_system_to_user,
                 )
             else:
-                completion_text = query(
+                completion_text  = query(
                 system_message=system_prompt,
                 user_message=prompt,
                 model=self.acfg.code.model,
@@ -223,11 +223,11 @@ class Agent:
 
             if code and nl_text:
                 # merge all code blocks into a single string
-                return nl_text, code , execution_summary
+                return nl_text, code , "execution_summary"
 
             logger.info("Plan + code extraction failed, retrying...")
         logger.info("Final plan + code extraction attempt failed, giving up...")
-        return "", completion_text, None  # type: ignore
+        return "", completion_text, "None"  # type: ignore
 
     def _draft(self, parent_node = None) -> Node:
         console.rule(f"[cyan]Agent Step {self.current_step} - Stage : Drafting")

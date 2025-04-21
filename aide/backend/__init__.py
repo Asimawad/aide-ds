@@ -111,7 +111,4 @@ def query(
     )
     logger.info(f"response: {raw_responses}", extra={"verbose": True})
     logger.info("---Query complete---", extra={"verbose": True})
-    if excute:
-        return raw_responses, info.get("execution_summaries", " ")
-    else:
-        return raw_responses, " "
+    return raw_responses
