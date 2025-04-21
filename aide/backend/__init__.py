@@ -114,4 +114,4 @@ def query(
     if excute:
         return raw_responses, info.get("execution_summaries", " ")
     else:
-        return raw_responses
+        return raw_responses, " "
