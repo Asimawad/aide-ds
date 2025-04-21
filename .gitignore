@@ -181,3 +181,4 @@ aide/example_tasks/house_prices/
 .asim
 finetuning
 prompt_playground
+aide/example_tasks/*/outputs/

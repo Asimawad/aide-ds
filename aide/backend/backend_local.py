@@ -1,4 +1,4 @@
-import os
+import re
 import logging
 import torch
 from typing import Optional, Dict, Any, Tuple, List # Add List
@@ -14,7 +14,7 @@ try:
     # Assuming aide-ds is the parent directory structure you provided earlier
     script_dir_backend = Path(__file__).resolve().parent
     aide_ds_root = script_dir_backend.parent.parent # Go up two levels from backend
-    # Check if the directory exists and add it
+
     if aide_ds_root.is_dir() and (aide_ds_root / 'aide').is_dir():
          sys.path.insert(0, str(aide_ds_root))
     else:
@@ -171,15 +171,12 @@ def query(
     system_message: Optional[str] = None,
     user_message: Optional[str] = None,
     model: str = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B" ,# "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct", # Example HF model ID
-    temperature: float = 0.6, # Slightly lower default temp
-    max_new_tokens: int = 2048, # Default max tokens to generate
     func_spec=None,
-
-    load_in_4bit: bool = True, # Default to 4-bit quantization
+    excute :bool = False,
     num_responses: int = 1,
     output_dir: Optional[Path] = None,
     step_identifier: str = "step",
-    **model_kwargs: Any,)-> Tuple[Optional[List[str]], Optional[List[str]], Optional[List[ExecutionResult]], float, int, int, Dict[str, Any]]:
+    **model_kwargs: Any,) -> Tuple[Optional[List[str]], float, int, int, Optional[Dict[str, Any]]]:
     """
     Query the local model with system and user messages.
 
@@ -197,18 +194,16 @@ def query(
     
     t0 = time.time()
     raw_responses: Optional[List[str]] = None
-    extracted_codes: Optional[List[str]] = None
-    execution_results: Optional[List[ExecutionResult]] = None
+    info: Optional[Dict[str, Any]] = None
     input_token_count = 0
     output_token_count = 0 # Represents tokens in the first response for consistency, or total
     info = {"model_name": model}
 
     if output_dir is None:
-        # Adjust if your structure is different
-        current_file_dir = Path(__file__).parent
-        project_root_dir = current_file_dir.parent.parent # Adjust as needed
-        output_dir = data_dir / "outputs" / f"exp{cfg.exp_name}" / f"{step_identifier}_{time.strftime('%Y%m%d_%H%M%S')}"
-        logger.warning(f"Output directory not specified, defaulting to: {output_dir}")
+        output_base = aide_ds_root / "playground_outputs"
+        # Use cfg.exp_name if available, otherwise use a generic name
+        exp_name = cfg.exp_name if cfg and hasattr(cfg, 'exp_name') else "default_exp"
+        output_dir = output_base / f"exp_{exp_name}" / f"{step_identifier}_{time.strftime('%Y%m%d_%H%M%S')}"
     output_dir.mkdir(parents=True, exist_ok=True)
     
     try:
@@ -243,38 +238,38 @@ def query(
         input_token_count = input_len
         # For consistency, report output tokens of the first response, or sum if needed elsewhere
         output_token_count = output_len_first
-        # exec_timeout = model_kwargs.get("exec_timeout", 20) # Default 20s
-
-        # extracted_codes, execution_results = process_and_execute_responses(
-        #      responses=raw_responses,
-        #      output_base_dir=output_dir, # Use the determined/passed output dir
-        #      interpreter_timeout=exec_timeout,
-        #      step_identifier=step_identifier
-        # )
-
+        
+        if excute:   
+            exec_timeout = model_kwargs.get("exec_timeout", 20) # Default 20s
+            info = process_and_execute_responses(
+                responses=raw_responses,
+                output_base_dir=output_dir, # Use the determined/passed output dir
+                interpreter_timeout=exec_timeout,
+                step_identifier=step_identifier
+            )
 
     except Exception as e:
         logger.error(f"Query failed for model {model}: {e}", exc_info=True)
         info["error"] = str(e)
         # Ensure return types match even on failure
         raw_responses = None
-        extracted_codes = None
-        execution_results = None
+        info = None
 
     finally:
         latency = time.time() - t0 # Total query time including processing/execution
         logger.info(f"Total query latency (incl. processing/exec): {latency:.2f}s")
 
     # Return all collected results
-    return raw_responses, extracted_codes, execution_results, latency, input_token_count, output_token_count, info
-
+    return raw_responses[0],latency, input_token_count, output_token_count, info
 
 def process_and_execute_responses(
-    responses: List[str],
-    output_base_dir: Path,
-    interpreter_timeout: int = 20, # Default timeout
-    step_identifier: str = "step" # Identifier for subdirs
-    ) -> Tuple[List[Optional[str]], List[ExecutionResult]]:
+        responses: List[str],
+        output_base_dir: Path,
+        interpreter_timeout: int = 20,  # Default timeout
+        main_workspace_dir: Path = cfg.workspace_dir,
+        step_identifier: str = "step"  # Identifier for subdirs
+    ) -> Dict[str, Any]:
+
     """
     Processes a list of raw LLM responses: saves raw, extracts/formats/saves code,
     executes code, and saves execution results.
@@ -292,6 +287,7 @@ def process_and_execute_responses(
     """
     extracted_codes: List[Optional[str]] = []
     execution_results: List[ExecutionResult] = []
+    execution_summaries: List[str] = []
 
     output_base_dir.mkdir(parents=True, exist_ok=True)
 
@@ -299,12 +295,6 @@ def process_and_execute_responses(
         console.rule(f"[bold blue]Processing Response {i+1}/{len(responses)} for {step_identifier}")
         response_dir = output_base_dir / f"{step_identifier}_response_{i}"
         response_dir.mkdir(exist_ok=True)
-
-        # creating a workspace for this response (relative to response_dir)
-        workspace_dir = response_dir / "workspace"
-        if workspace_dir.exists(): # Clean up previous run for this index if any
-            shutil.rmtree(workspace_dir)
-        workspace_dir.mkdir() # Create clean workspace
 
         # Save Raw Response
         raw_response_path = response_dir / "raw_response.txt"
@@ -341,11 +331,13 @@ def process_and_execute_responses(
                     formatted_extracted_code = extracted_code # Use unformatted for execution attempt
                     console.print(f"[bold yellow]Warning: Saved unformatted code for response {i+1}.[/bold yellow]")
 
+
+
         # Execute code (only if code was extracted)
         if formatted_extracted_code:
-            logger.info(f"Executing code for response {i+1}...")
+            logger.info(f"Executing code for response {i+1} in Workspace :{main_workspace_dir}..")
             interpreter = Interpreter(
-                working_dir=data_dir.parent.parent/ "workspaces" / cfg.exp_name, # Use the dedicated workspace
+                working_dir=main_workspace_dir, #data_dir.parent.parent/ "workspaces" / cfg.exp_name, # Use the dedicated workspace
                 timeout=interpreter_timeout
             )
             try:
@@ -392,26 +384,44 @@ def process_and_execute_responses(
             except Exception as e_txt:
                 logger.error(f"Failed to save execution log as text for response {i+1}: {e_txt}")
 
-
-        # Print execution summary
+        
+        summary_lines = []
+        summary_lines.append(f"[bold magenta]Execution Result {i+1}:[/bold magenta]")
+        success = exec_result.exc_type is None
+        summary_lines.append(f"  Success: {success}")
+        summary_lines.append(f"  Execution Time: {exec_result.exec_time:.2f}s")
         console.print(f"[bold magenta]Execution Result {i+1}:[/bold magenta]")
         console.print(f"  Success: {exec_result.exc_type is None}")
         console.print(f"  Execution Time: {exec_result.exec_time:.2f}s")
         if exec_result.exc_type:
             console.print(f"  Error Type: [bold red]{exec_result.exc_type}[/bold red]")
-            # Also print basic error args if available
+
+            summary_lines.append(f"  Error Type: [bold red]{exec_result.exc_type}[/bold red]")
             error_args = exec_result.exc_info.get('args', []) if exec_result.exc_info else []
             if error_args:
                 console.print(f"  Error Args: {error_args}")
+                summary_lines.append(f"  Error Args: {error_args}")
         console.print(f"  Terminal Output (preview):")
+        summary_lines.append(f"  Terminal Output (preview):")
         term_out_list = exec_result.term_out if isinstance(exec_result.term_out, list) else [str(exec_result.term_out)]
         term_out_str = "\n".join(term_out_list)
+        summary_lines.append("[dim]" + term_out_str[:500] + ("\n..." if len(term_out_str) > 500 else "") + "[/dim]")
+
         console.print("[dim]" + term_out_str[:500] + ("\n..." if len(term_out_str) > 500 else "") + "[/dim]")
         console.print(f"  Full output/logs saved in: {response_dir}") # Use relative path
         console.print("-" * 20)
 
+        # Join lines for console print and store the raw string version
+        console_summary = "\n".join(summary_lines)
+        # Remove rich markup for the stored string summary
+        plain_summary = "\n".join([re.sub(r'\[/?.*?\]', '', line) for line in summary_lines])
+
+        console.print(console_summary)
+        execution_summaries.append(plain_summary)
+
+
         # Append results for this response
-        extracted_codes.append(formatted_extracted_code) # Will be None if extraction failed
+        extracted_codes.append(formatted_extracted_code)
         execution_results.append(exec_result)
 
-    return extracted_codes, execution_results
+    return {"extracted_codes" : extracted_codes, "execution_results" : execution_results, "execution_summaries":execution_summaries}

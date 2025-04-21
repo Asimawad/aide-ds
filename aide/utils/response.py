@@ -55,9 +55,11 @@ def trim_long_string(string, threshold=5100, k=2500):
 def extract_code(text):
     """Extract python code blocks from the text."""
     parsed_codes = []
-    parts = re.split(r"</think>", text, maxsplit=1, flags=re.DOTALL)
-    # parts[0] is everything before </think>, parts[1] is everything after
-    text = parts[1].strip() if len(parts) > 1 else ""
+    if "</think>" in text:
+        parts = re.split(r"</think>", text, maxsplit=1, flags=re.DOTALL)
+        # parts[0] is everything before </think>, parts[1] is everything after
+        text = parts[1].strip() if len(parts) > 1 else ""
+
     # When code is in a text or python block
     matches = re.findall(r"```(python)?\n*(.*?)\n*```", text, re.DOTALL)
     for match in matches:

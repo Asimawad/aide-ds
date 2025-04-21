@@ -61,6 +61,7 @@ class AgentConfig:
     data_preview: bool
     convert_system_to_user: bool
     obfuscate: bool
+    ITS_Strategy:str 
 
     code: StageConfig
     feedback: StageConfig

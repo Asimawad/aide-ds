@@ -26,7 +26,7 @@ class Node(DataClassJsonMixin):
     # ---- code & plan ----
     code: str
     plan: str = field(default=None, kw_only=True)  # type: ignore
-
+    summary:str = None,
     # ---- general attrs ----
     step: int = field(default=None, kw_only=True)  # type: ignore
     id: str = field(default_factory=lambda: uuid.uuid4().hex, kw_only=True)

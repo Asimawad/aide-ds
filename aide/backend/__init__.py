@@ -8,7 +8,8 @@ from . import (
 )
 from pathlib import Path
 from .utils import FunctionSpec, OutputType, PromptType, compile_prompt_to_md
-
+from aide.utils.config import load_cfg
+cfg = load_cfg()
 logger = logging.getLogger("aide")
 
 
@@ -18,7 +19,6 @@ def determine_provider(model: str) -> str:
         return "openai"
     # elif model.startswith("deepseek-"):
     #     return "deepseek"
-    # all other models are handle by local
     else:
         return "HF"
 
@@ -35,13 +35,12 @@ def query(
     system_message: PromptType | None,
     user_message: PromptType | None,
     model: str,
-    num_responses:int = 1,
-    temperature: float | None = None,
     max_tokens: int | None = None,
     func_spec: FunctionSpec | None = None,
     convert_system_to_user: bool = False,
-    inference_engine:str|None = "HF",
-    local_use: bool = False,
+    inference_engine:str|None = "openai",
+    excute: bool = False,
+    current_step:int=0,
     reasoning_effort: str | None = None,
     **model_kwargs,  # his mean that you can pass model specific keyword arguments as kwargs
 ) -> OutputType:
@@ -61,7 +60,7 @@ def query(
         OutputType: A string completion if func_spec is None, otherwise a dict with the function call details.
     """
 
-    provider = inference_engine if inference_engine else determine_provider(model) 
+    provider = determine_provider(model) 
 
     model_kwargs.update({
         "model": model,
@@ -70,7 +69,7 @@ def query(
     # Handle provider-specific parameters
     if provider == "openai" and model.startswith("o3-"):
         model_kwargs = {
-            "model":model
+        "model": model,
         }
         # o3-mini specific parameters
         if max_tokens is not None:
@@ -81,13 +80,11 @@ def query(
         # Standard parameters for other models
         if max_tokens is not None:
             model_kwargs["max_new_tokens"] = max_tokens
-        if temperature is not None:
-            model_kwargs["temperature"] = temperature
+
 
     # Include any additional model-specific keyword arguments
     model_kwargs.update(model_kwargs)
-    logger.info(f"Models Arguments are {model_kwargs}")
-    logger.info("---Querying model---", extra={"verbose": True})
+    logger.info(f"---Querying model--- Arguments are {model_kwargs} Model : {model}, provider : {provider}", extra={"verbose": True})
     system_message = compile_prompt_to_md(system_message) if system_message else None
     if system_message:
         logger.info(f"system: {system_message}", extra={"verbose": True})
@@ -101,17 +98,20 @@ def query(
 
     query_func = provider_to_query_func[provider]
     
-    step_id = "draft_0" # Example
+    step_id = f"Draft_{current_step}" # Example
     # output, req_time, in_tok_count, out_tok_count, info 
-    raw_responses, extracted_codes, execution_results, latency, input_token_count, output_token_count, info= query_func(
+    raw_responses, latency, input_token_count, output_token_count, info = query_func(
         system_message=system_message,
         user_message=user_message,
         func_spec=func_spec,
         convert_system_to_user=convert_system_to_user,
         step_identifier=step_id,
+        excute = excute,
         **model_kwargs,
     )
-    logger.info(f"response: {raw_responses[0][:300]}", extra={"verbose": True})
+    logger.info(f"response: {raw_responses}", extra={"verbose": True})
     logger.info("---Query complete---", extra={"verbose": True})
-    # logger.info(f"type of code {extracted_codes[0]} , and type of excution result {execution_results[0]}")
-    return raw_responses[0]
+    if excute:
+        return raw_responses, info.get("execution_summaries", " ")
+    else:
+        return raw_responses

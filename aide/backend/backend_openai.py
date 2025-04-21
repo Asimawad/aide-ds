@@ -27,7 +27,8 @@ OPENAI_TIMEOUT_EXCEPTIONS = (
     openai.InternalServerError,
 )
 
-
+from rich.console import Console
+console = Console()
 @once
 def _setup_openai_client():
     if not os.getenv("OPENAI_API_KEY"):
@@ -40,16 +41,16 @@ def query(
     system_message: str | None,
     user_message: str | None,
     func_spec: FunctionSpec | None = None,
+    excute:bool=False,
+    step_identifier = None,
     convert_system_to_user: bool = False,
     **model_kwargs,
 ) -> tuple[OutputType, float, int, int, dict]:
     _setup_openai_client()
     filtered_kwargs: dict = select_values(notnone, model_kwargs)  # type: ignore
-
     messages = opt_messages_to_list(
         system_message, user_message, convert_system_to_user=convert_system_to_user
     )
-
     if func_spec is not None:
         filtered_kwargs["tools"] = [func_spec.as_openai_tool_dict]
         # force the model the use the function
@@ -76,15 +77,14 @@ def query(
         ), "Function name mismatch"
         try:
             output = json.loads(choice.message.tool_calls[0].function.arguments)
-            print("_______________________________________\n")
-            print(f"response of the feed back is {output}")
+            console.rule(f"[green]Feedback for {step_identifier}")
+            logger.info(f"response of the feed back is {output}")
             print("\n")
         except json.JSONDecodeError as e:
             logger.error(
                 f"Error decoding the function arguments: {choice.message.tool_calls[0].function.arguments}"
             )
             raise e
-
     in_tokens = completion.usage.prompt_tokens
     out_tokens = completion.usage.completion_tokens
 
@@ -92,6 +92,7 @@ def query(
         "system_fingerprint": completion.system_fingerprint,
         "model": completion.model,
         "created": completion.created,
+        "execution_summaries":"None",
     }
 
     return output, req_time, in_tokens, out_tokens, info

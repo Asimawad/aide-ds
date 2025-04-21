@@ -2,6 +2,7 @@ import shutil
 import logging
 import random
 import time
+from rich.syntax import Syntax
 from rich.console import Console
 from typing import Any, Callable, cast
 from .backend import FunctionSpec, query
@@ -10,7 +11,7 @@ from .journal import Journal, Node
 from .utils import data_preview
 from .utils.config import Config
 from .utils.metric import MetricValue, WorstMetricValue
-from .utils.response import extract_code, extract_text_up_to_code, wrap_code,trim_long_string
+from .utils.response import extract_code, extract_text_up_to_code, wrap_code,trim_long_string, format_code
 from .utils.self_reflection import perform_two_step_reflection  # Adjust path if needed
 from pathlib import Path # <<< Add Path import
 import os
@@ -178,7 +179,7 @@ class Agent:
                 "explicitly,structure your answer exactly like this: ") + fmt
         }
 
-    def plan_and_code_query(self, prompt, retries=3) -> tuple[str, str]:
+    def plan_and_code_query(self, prompt,excute, retries=3) -> tuple[str, str]:
         """Generate a natural language plan + code in the same LLM call and split them apart."""
         system_prompt = {"SYSTEM":"You are a Kaggle Grandmaster. you can plan , implement, debug and improve and machine learning engineering code," ,
                          "Possible Questions you will face": "1. you will be asked to either come up with a plan and a code to solve the kaggle competetion, or debug a code or improve a working code to get better results",
@@ -189,9 +190,10 @@ class Agent:
                         }
    # Your code here
         completion_text = None
+        execution_summary= None
         for _ in range(retries):
-            if self.cfg.inference_engine == "HF" :
-                completion_text = query(
+            if self.cfg.inference_engine == "HF" and self.acfg.code.model != "o3-mini" :
+                completion_text, execution_summary = query(
                 system_message=system_prompt,
                 user_message=prompt,
                 model=self.acfg.code.model,
@@ -199,6 +201,8 @@ class Agent:
                 max_tokens=self.acfg.code.max_new_tokens,
                 top_p=self.acfg.code.top_p,
                 top_k=self.acfg.code.top_k,
+                excute=excute,
+                current_step=self.current_step,
                 inference_engine = self.cfg.inference_engine,
                 num_responses=self.acfg.code.num_return_sequences,
                 convert_system_to_user=self.acfg.convert_system_to_user,
@@ -209,6 +213,7 @@ class Agent:
                 user_message=prompt,
                 model=self.acfg.code.model,
                 temperature=self.acfg.code.temp,
+                current_step=self.current_step,
                 convert_system_to_user=self.acfg.convert_system_to_user,
             )
             # for debugging -> delete later
@@ -218,13 +223,15 @@ class Agent:
 
             if code and nl_text:
                 # merge all code blocks into a single string
-                return nl_text, code
+                return nl_text, code , execution_summary
 
             logger.info("Plan + code extraction failed, retrying...")
         logger.info("Final plan + code extraction attempt failed, giving up...")
-        return "", completion_text  # type: ignore
+        return "", completion_text, None  # type: ignore
 
-    def _draft(self) -> Node:
+    def _draft(self, parent_node = None) -> Node:
+        console.rule(f"[cyan]Agent Step {self.current_step} - Stage : Drafting")
+        logger.info(f"Agent step {self.current_step}: Generating code (parent type: {parent_node})")
         introduction = (
             "You are a Kaggle grandmaster attending a competition. "
             "In order to win this competition, you need to come up with an excellent and creative plan "
@@ -260,12 +267,20 @@ class Agent:
         if self.acfg.data_preview:
             prompt["Data Overview"] = self.data_preview
 
-        plan, code = self.plan_and_code_query(prompt)
-        new_node = Node(plan=plan, code=code)
+        plan, code ,execution_summary = self.plan_and_code_query(prompt, excute=True)
+        formatted_extracted_code = format_code(code)
+        
+        if formatted_extracted_code:
+            console.print(f"[bold green]Extracted Code for step {self.current_step}:[/bold green]")
+            console.print(Syntax(formatted_extracted_code, "python", theme="default", line_numbers=True))
+            console.print("-" * 20)
+        new_node = Node(plan=plan, code=code , summary=execution_summary)
         logger.info(f"Drafted new node {new_node.id}")
-        return new_node
+        return new_node 
 
     def _improve(self, parent_node: Node) -> Node:
+        console.rule(f"[cyan]Agent Step {self.current_step} - Stage : Improving")
+        logger.info(f"Agent step {self.current_step}: Generating code (parent type: {parent_node.stage_name})")
         introduction = (
             "You are a Kaggle grandmaster attending a competition. You are provided with a previously developed "
             "solution below and should improve it in order to further increase the (test time) performance. "
@@ -302,12 +317,14 @@ class Agent:
         }
         prompt["Instructions"] |= self._prompt_impl_guideline
 
-        plan, code = self.plan_and_code_query(prompt)
+        plan, code , _ = self.plan_and_code_query(prompt,excute=False)
         new_node = Node(plan=plan, code=code, parent=parent_node)
         logger.info(f"Improved node {parent_node.id} to create new node {new_node.id}")
         return new_node
 
     def _debug(self, parent_node: Node) -> Node:
+        console.rule(f"[cyan]Agent Step {self.current_step} - Stage : Debugging")
+        logger.info(f"Agent step {self.current_step}: Generating code (parent type: {parent_node.stage_name})")
         introduction = (
             "You are a Kaggle grandmaster attending a competition. "
             "Your previous solution had a bug and/or did not produce a submission.csv, "
@@ -342,7 +359,7 @@ class Agent:
         if self.acfg.data_preview:
             prompt["Data Overview"] = self.data_preview
 
-        plan, code = self.plan_and_code_query(prompt)
+        plan, code, _ = self.plan_and_code_query(prompt,excute=False)
         new_node = Node(plan=plan, code=code, parent=parent_node)
         logger.info(f"Debugged node {parent_node.id} to create new node {new_node.id}")
         return new_node
@@ -398,16 +415,15 @@ class Agent:
         draft_flag = False
         if parent_node is None:
             draft_flag = True
-            result_node = self._draft()
             node_stage = "draft"
+            result_node = self._draft(parent_node)
         elif parent_node.is_buggy:
-            result_node = self._debug(parent_node)
             node_stage = "debug"
+            result_node = self._debug(parent_node)
         else:
-            result_node = self._improve(parent_node)
             node_stage = "improve"
-        console.rule(f"[cyan]Agent Step {current_step_number} - Stage : {node_stage}")
-        logger.info(f"Agent step {current_step_number}: Generating code (parent type: {parent_type})")
+            result_node = self._improve(parent_node)
+  
 
         # Log plan and initial code *before* reflection
         step_log_data = {
@@ -423,7 +439,7 @@ class Agent:
 
         # Apply reflection if applicable
         reflection_applied = False
-        if draft_flag:  # Or based on your reflection strategy
+        if draft_flag and self.acfg.ITS_Strategy=="self-reflection":  # Or based on your reflection strategy
             try:
                 console.rule(f"[cyan]Agent Step {current_step_number} - Stage : Self Reflection")
                 reflection_plan, reflection_code = self.reflect(code=result_node.code)
@@ -461,6 +477,8 @@ class Agent:
 
 
         # Execute the potentially reflected code
+        console.rule(f"[cyan]Agent Step {self.current_step} - Stage : Code Execution and Parsing ")
+
         logger.info(f"Agent step {current_step_number}: Executing code for node {result_node.id} (stage: {node_stage}, reflection applied: {reflection_applied})")
         exec_start_time = time.time()
         exec_result = exec_callback(result_node.code, True) # reset_session=True usually
@@ -492,7 +510,6 @@ class Agent:
         else:
             # Log a placeholder if metric is invalid/buggy
             step_log_data[f"eval/validation_metric"] = float('nan') # W&B handles NaN well
-
 
         # Final check for submission file existence
         submission_path = submission_dir / "submission.csv"
@@ -569,10 +586,7 @@ class Agent:
 
         elif best_node:
              logger.info(f"Node {result_node.id} is not the best node (Best: {best_node.id} with metric {best_node.metric.value:.4f})")
-
-        # self.current_step += 1 # Increment step counter at the end
-
-#_____________________________________________________
+        self.current_step += 1
 
  # <<< MODIFY parse_exec_result method >>>
     def parse_exec_result(self, node: Node, exec_result: ExecutionResult) -> Node:
@@ -580,25 +594,30 @@ class Agent:
 
         node.absorb_exec_result(exec_result)
 
-        # --- Existing LLM call to evaluate execution ---
-        # ... (introduction, prompt setup) ...
+        # Original complex prompt
         introduction = (
-             # ... (same as before) ...
+            "You are a Kaggle grandmaster attending a competition. "
+            "You have written code to solve this task and now need to evaluate the output of the code execution. "
+            "You should determine if there were any bugs as well as report the empirical findings."
         )
         if self.acfg.obfuscate:
-             introduction = (
-                 # ... (same as before) ...
-             )
+                introduction = (
+                    "You are an expert machine learning engineer attempting a task. "
+                    "You have written code to solve this task and now need to evaluate the output of the code execution. "
+                    "You should determine if there were any bugs as well as report the empirical findings."
+                )
+
         prompt = {
             "Introduction": introduction,
-            "Task description": self.task_desc,
-            "Implementation": wrap_code(node.code),
-            "Execution output": wrap_code(node.term_out, lang=""),
+            "Task Description": self.task_desc, # Provide task context
+            "Code Executed": wrap_code(node.code),
+            "Execution Output Log": wrap_code(node.term_out, lang=""), # Use raw term_out
         }
-
+        
         # Retry mechanism for the feedback LLM call (optional but good)
         max_retries = 3
         review_response = None
+        
         for attempt in range(max_retries):
             try:
                 review_response = cast(
@@ -609,6 +628,7 @@ class Agent:
                         func_spec=review_func_spec,
                         model=self.acfg.feedback.model,
                         temperature=self.acfg.feedback.temp,
+                        excute = False,
                         convert_system_to_user=self.acfg.convert_system_to_user,
                     ),
                 )
@@ -630,15 +650,12 @@ class Agent:
                          "metric": None,
                          "lower_is_better": True # Default assumption
                     }
-                    break # Exit retry loop
-
+                    break 
 
         # if the metric isn't a float then fill the metric with the worst metric
-        # <<< Ensure metric is None if not float, BEFORE checking existence >>>
         metric_value = review_response.get("metric") # Use .get for safety
         if not isinstance(metric_value, (float, int)):
             metric_value = None # Set to None if not a valid number
-        # <<< END CHANGE >>>
 
 
         # do an extra check, to catch cases where judge fails
@@ -676,7 +693,6 @@ class Agent:
             if self.wandb_run:
                  bug_log = {"eval/buggy_reasons": "; ".join(bug_reasons)}
                  self.wandb_run.log(bug_log) # Log without step, will associate with last logged step
-            # <<< END LOG >>>
         else:
             logger.info(f"Parsed results: Node {node.id} is not buggy")
             node.metric = MetricValue(
@@ -684,81 +700,3 @@ class Agent:
             )
 
         return node
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # def parse_exec_result(self, node: Node, exec_result: ExecutionResult) -> Node:
-    #     logger.info(f"Agent is parsing execution results for node {node.id}")
-
-    #     node.absorb_exec_result(exec_result)
-
-    #     introduction = (
-    #         "You are a Kaggle grandmaster attending a competition. "
-    #         "You have written code to solve this task and now need to evaluate the output of the code execution. "
-    #         "You should determine if there were any bugs as well as report the empirical findings."
-    #     )
-    #     if self.acfg.obfuscate:
-    #         introduction = (
-    #             "You are an expert machine learning engineer attempting a task. "
-    #             "You have written code to solve this task and now need to evaluate the output of the code execution. "
-    #             "You should determine if there were any bugs as well as report the empirical findings."
-    #         )
-    #     prompt = {
-    #         "Introduction": introduction,
-    #         "Task description": self.task_desc,
-    #         "Implementation": wrap_code(node.code),
-    #         "Execution output": wrap_code(node.term_out, lang=""),
-    #     }
-
-    #     response = cast(
-    #         dict,
-    #         query(
-    #             system_message=prompt,
-    #             user_message=None,
-    #             func_spec=review_func_spec,
-    #             model=self.acfg.feedback.model,
-    #             temperature=self.acfg.feedback.temp,
-    #             convert_system_to_user=self.acfg.convert_system_to_user,
-    #         ),
-    #     )
-
-    #     # if the metric isn't a float then fill the metric with the worst metric
-    #     if not isinstance(response["metric"], float):
-    #         response["metric"] = None
-
-    #     # do an extra check, to catch cases where judge fails
-    #     has_csv_submission = (
-    #         self.cfg.workspace_dir / "submission" / "submission.csv"
-    #     ).exists()
-
-    #     node.analysis = response["summary"]
-    #     node.is_buggy = (
-    #         response["is_bug"]
-    #         or node.exc_type is not None
-    #         or response["metric"] is None
-    #         or not response["has_csv_submission"]
-    #         or not has_csv_submission
-    #     )
-
-    #     if node.is_buggy:
-    #         logger.info(
-    #             f"Parsed results: Node {node.id} is buggy and/or did not produce a submission.csv"
-    #         )
-    #         node.metric = WorstMetricValue()
-    #     else:
-    #         logger.info(f"Parsed results: Node {node.id} is not buggy")
-    #         node.metric = MetricValue(
-    #             response["metric"], maximize=not response["lower_is_better"]
-    #         )
-
-    #     return node
