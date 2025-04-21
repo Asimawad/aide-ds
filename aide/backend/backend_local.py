@@ -243,7 +243,7 @@ def query(
         input_token_count = input_len
         # For consistency, report output tokens of the first response, or sum if needed elsewhere
         output_token_count = output_len_first
-        exec_timeout = model_kwargs.get("exec_timeout", 20) # Default 20s
+        # exec_timeout = model_kwargs.get("exec_timeout", 20) # Default 20s
 
         # extracted_codes, execution_results = process_and_execute_responses(
         #      responses=raw_responses,

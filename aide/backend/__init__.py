@@ -101,7 +101,6 @@ def query(
 
     query_func = provider_to_query_func[provider]
     
-    query_output_dir = Path("./query_outputs/some_run_id/step_x") # Example
     step_id = "draft_0" # Example
     # output, req_time, in_tok_count, out_tok_count, info 
     raw_responses, extracted_codes, execution_results, latency, input_token_count, output_token_count, info= query_func(
@@ -112,7 +111,7 @@ def query(
         step_identifier=step_id,
         **model_kwargs,
     )
-    logger.info(f"response: {raw_responses}", extra={"verbose": True})
+    logger.info(f"response: {raw_responses[0][:300]}", extra={"verbose": True})
     logger.info("---Query complete---", extra={"verbose": True})
     # logger.info(f"type of code {extracted_codes[0]} , and type of excution result {execution_results[0]}")
     return raw_responses[0]

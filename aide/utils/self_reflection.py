@@ -40,54 +40,54 @@ def perform_two_step_reflection(
                - reflection_plan: Text describing the critique and planned edits.
                - revised_code: The minimally revised code, or original if no changes.
     """
+
+    system_prompt1 = {"SYSTEM":"    You are a senior data scientist, trying to check a code written by an junior data scientist to solve a machine learning engineering task - a Kaggle competetion" ,
+                    "How to answer the user":" Whenever you answer, always:"
+                    " 1. Write a “PLAN:” section in plain text—3–5 concise bullet points."
+                    " 2. Then write a “CODE:” section containing exactly one fenced Python block:"
+                    "```python"
+                }
+    
     # Stage 1: Critique and Edit Proposal (Prompt from your Agent.reflect)
-    critique_prompt = {
-        # --- ROLE ---
-        "Role": "You are a simple code checker.",
-        # --- TASK ---
-        "Task": (
-            "1. Read the 'Code to Review' below.\n"
-            "2. Find 1 to 4 small mistakes (like typos, wrong variable names, simple logic errors, bad file paths).\n"
-            "3. Write step-by-step text instructions to fix ONLY those small mistakes.\n"
-            "4. If you find NO mistakes, just write the single sentence: No specific errors found requiring changes."
-        ),
+    critique_prompt = { 
+        "Question" : f"I am writing a code to solve this task : {task_desc}  , and I wrote this code below ",
+        
         # --- CODE TO REVIEW ---
         "Code to Review": wrap_code_func(code),  # Use the passed function
-        # --- CONTEXT ---
-        "Context": task_desc,  # Use the passed task_desc
         # --- RULES ---
-        "Rules": (
+        "Your Task": "Provide a Code review for possible mistakes and bugs , and also give steps to fix it systimatically",
+        "Rules I need you to follow": (
             "RULE 1: **DO NOT WRITE ANY PYTHON CODE IN YOUR RESPONSE.**\n"
             "RULE 2: Do not suggest big changes or new ideas.\n"
             "RULE 3: Only suggest fixes for small mistakes in the code shown.\n"
             "RULE 4: Follow the 'Output Format' EXACTLY."
+            "RULE 5: If you see that the code is fine, Reply with one sentence only-> ```No specific errors found requiring changes.```"
         ),
         # --- OUTPUT FORMAT ---
         "Output Format": (
-            "If mistakes are found:\n"
-            "- Start with one sentence explaining the main mistake(s).\n"
-            "- Then, write a NUMBERED list of fix instructions.\n"
-            "- Each number is ONE simple step.\n"
-            "- Example Step: '1. Line 15: Change `pred_y` to `predictions`.'\n"
-            "- Example Step: '2. Line 30: Change file path to `./submission/output.csv`.'\n"
+            "If mistakes are found, your response should contain two sections: \n"
+            
+            "1. ”Review” Section: - Explaining the main mistake(s).\n"
+            "2. ”Instructions” Section: write a NUMBERED list of fix instructions.\n"
+            "- Each number is ONE simple step Guiding ne from the start to the finish of the code.\n"
             "\n"
             "If no mistakes are found:\n"
-            "- Write only this sentence: No specific errors found requiring changes."
+            "- Write only this sentence: ```No specific errors found requiring changes.```."
             "\n"
-            "**FINAL CHECK: Did you include any Python code? If yes, REMOVE IT.**"
         ),
     }
     plan_raw = query_func(  # Use the passed function
-        system_message=critique_prompt,
-        user_message=None,
+        system_message=system_prompt1,
+        user_message=critique_prompt,
         model=model_name,  # Use the passed argument
         temperature=temperature,  # Use the passed argument
         convert_system_to_user=convert_system_to_user,  # Use the passed argument
     )
     # Clean the plan (e.g., remove think tags if your query function adds them)
-    reflection_plan = re.sub(
-        r"<think>.*?</think>", "", plan_raw, flags=re.DOTALL
-    ).strip()
+
+    parts = re.split(r"</think>", plan_raw, maxsplit=1, flags=re.DOTALL)
+    # parts[0] is everything before </think>, parts[1] is everything after
+    reflection_plan = parts[1].strip() if len(parts) > 1 else ""
 
     # Check if critique suggested no changes
     if reflection_plan.strip() == "No specific errors found requiring changes.":
@@ -95,10 +95,20 @@ def perform_two_step_reflection(
         return reflection_plan, code
 
     # Stage 2: Focused Code Edit (Prompt from your Agent.reflect)
+    
+    
+    system_prompt2 = {"SYSTEM":"You are a Kaggle Grandmaster and a precise coder. you will receive a Kaggle competetion code, a review on the correctness of this code, and Instructions on how to improve its correctness" ,
+                        "Task": "your task is to help your team win the competetion by following the code review and implementing the suggested instructions ",
+                        "How to reply to the user":" Whenever you answer, always:"
+                        " 1. think of a ”Plan:” section in plain text as concise bullet points on how you are going to update the original code. wrap this section between <think></think> tags, it wil be used to hide your thinking from the user, "
+                        " 2. Then write a Revised Code: section titled '# Applying edits based on review.' containing the full new improved code, written by following the instructions provided by the user, and your concise plan to fix the code"
+                        " 3. If the review on the code```No specific errors found requiring changes.```, Just reply with the same exact copy of the original code wrapped in ``` markdown block",
+                        "CRITICAL REQUIREMENT" :"Always make sure that you don't provide a partail solutions, your final code block sholud be complete, starting from imports, untill saving the submission",
+                    }
     coder_prompt = {
-        # --- ROLE ---
-        "Role": "You are a precise code editor.",
         # --- TASK ---
+        "Question" : f"I am trying to improve my code to solve this task : {task_desc} , following the review and instructions I got from my teammates ",
+
         "Task": (
             "1. Read the 'Original Code'.\n"
             "2. Read the 'Edit Instructions'. These are text instructions, NOT code.\n"
@@ -111,14 +121,15 @@ def perform_two_step_reflection(
         "Edit Instructions": reflection_plan,  # Use the cleaned plan from Stage 1
         # --- RULES ---
         "Rules": (
-            "RULE 1: Apply ONLY the steps from 'Edit Instructions'.\n"
-            "RULE 2: **Do NOT change any other part of the code.**\n"
+            "RULE 1: Apply the steps from 'Edit Instructions'.\n"
+            "RULE 2: **Do NOT change any other part of the code. if they are ok**\n"
             "RULE 3: Do not reformat or restructure code.\n"
             "RULE 4: If 'Edit Instructions' accidentally contains any code examples, IGNORE THEM. Follow only the numbered text steps.\n"
             "RULE 5: Your entire output MUST follow the 'Output Format'."
         ),
         # --- OUTPUT FORMAT ---
         "Output Format": (
+            "your thinking and planning should be hiddin from me, that is achieved by wrapping it between <think></think> tags, I just care about the code"
             "Line 1: Start IMMEDIATELY with a comment '# Applying edits based on review.'\n"
             "Next Line: Start the Python code block immediately.\n"
             "```python\n"
@@ -129,8 +140,8 @@ def perform_two_step_reflection(
     }
 
     revised_code_response = query_func(  # Use the passed function
-        system_message=coder_prompt,
-        user_message=None,
+        system_message=system_prompt2,
+        user_message=coder_prompt,
         model=model_name,  # Use the passed argument
         temperature=temperature,  # Use the passed argument
         convert_system_to_user=convert_system_to_user,  # Use the passed argument
