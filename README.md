@@ -187,5 +187,16 @@ aide data_dir="aide/example_tasks/spooky-author-identification" \
     --port 8000 \
     --dtype bfloat16 \
     --device cuda &
-    
+
+aide data_dir="aide/example_tasks/nomad2018-predict-transparent-conductors/dataset" \
+     goal="Predict formation energy (formation_energy_ev_natom) and bandgap energy (bandgap_energy_ev) for materials given their composition and structural properties" \
+     eval="Mean of column-wise Root Mean Squared Logarithmic Error (RMSLE) across the two target columns" \
+     agent.code.model="deepseek-r1:latest" \
+     agent.steps=20 \
+     agent.code.max_new_tokens=2048 \
+     agent.code.temp=0.6 \
+     wandb.project="aide-nomad2018" \
+     exp_name="32b_nomad2018"
+
+
 ```

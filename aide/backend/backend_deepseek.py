@@ -41,12 +41,18 @@ def query(
     system_message: str | None,
     user_message: str | None,
     func_spec: FunctionSpec | None = None,
+    excute:bool=False,
+    step_identifier = None,
+    top_p :float = 0.9,
+    num_responses:int=1,
+    top_k:int=50,
     convert_system_to_user: bool = False,
     **model_kwargs,
 ) -> tuple[OutputType, float, int, int, dict]:
     _setup_ollama_client()
     filtered_kwargs: dict = select_values(notnone, model_kwargs)  # type: ignore
-
+    print(filtered_kwargs)
+    # {'temperature': 0.6, 'top_p': 0.9, 'top_k': 50, 'num_responses': 1, 'model': 'deepseek-r1:latest'}
     messages = opt_messages_to_list(
         system_message, user_message, convert_system_to_user=convert_system_to_user
     )
