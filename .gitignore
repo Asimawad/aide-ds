@@ -175,7 +175,7 @@ logs
 .DS_STORE
 .trunk
 .qodo
-Datasets/
+data/
 Datasets.zip
 Fulld_dataset.zip
 aide/example_tasks/house_prices/
@@ -183,3 +183,4 @@ aide/example_tasks/house_prices/
 finetuning
 prompt_playground
 aide/example_tasks/*/outputs/
+Play-Code

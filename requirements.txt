@@ -2,6 +2,7 @@
 accelerate>=1.6.0
 backoff
 wandb
+weave
 bitsandbytes
 black
 coolname
