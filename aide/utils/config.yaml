@@ -71,7 +71,7 @@ agent:
 # W&B Logging Configuration
 wandb:
   enabled: true             # Set to false to disable W&B logging
-  project: "aide-ds"        # Your W&B project name
+  project: "LFC"        # Your W&B project name
   entity: null              # Your W&B entity (username or team), null uses default
   run_name: null            # Optional: Set a specific run name, null generates one
   log_code: true            # Log the generated code for each step

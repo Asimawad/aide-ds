@@ -1,6 +1,7 @@
 import shutil
 import logging
 import random
+import weave
 import time
 from rich.syntax import Syntax
 from rich.console import Console
@@ -178,7 +179,7 @@ class Agent:
                 "There should be no additional headings or text in your response. Just natural language text followed by a newline and then the markdown code block. "
                 "explicitly,structure your answer exactly like this: ") + fmt
         }
-
+    @weave.op() 
     def plan_and_code_query(self, prompt,excute, retries=3) -> tuple[str, str]:
         """Generate a natural language plan + code in the same LLM call and split them apart."""
         system_prompt = {"SYSTEM":"You are a Kaggle Grandmaster. you can plan , implement, debug and improve and machine learning engineering code," ,
@@ -589,7 +590,7 @@ class Agent:
              logger.info(f"Node {result_node.id} is not the best node (Best: {best_node.id} with metric {best_node.metric.value:.4f})")
         self.current_step += 1
 
- # <<< MODIFY parse_exec_result method >>>
+    @weave.op() 
     def parse_exec_result(self, node: Node, exec_result: ExecutionResult) -> Node:
         logger.info(f"Agent is parsing execution results for node {node.id}")
 

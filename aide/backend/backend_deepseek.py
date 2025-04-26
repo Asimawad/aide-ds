@@ -7,6 +7,7 @@ from funcy import notnone, once, select_values
 import openai
 from dotenv import load_dotenv
 import os
+import weave 
 
 from aide.backend.utils import (
     FunctionSpec,

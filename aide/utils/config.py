@@ -29,7 +29,7 @@ logger = logging.getLogger("aide")
 @dataclass
 class WandbConfig:
     enabled: bool = True
-    project: str = "aide-ds"
+    project: str = "LFC"
     entity: str | None = None
     run_name: str | None = None
     log_code: bool = True

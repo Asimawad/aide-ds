@@ -3,10 +3,13 @@ import logging
 import shutil
 import sys
 import os
+import weave
 os.environ['WANDB_API_KEY'] ="8ca0d241dd66f5a643d64a770d61ad066f937c48"
 try:
     import wandb
     # wandb.init(project="aide-ds", entity="my-team")
+    weave.init('LFC') # 🐝
+
 except ImportError:
     wandb = None
 

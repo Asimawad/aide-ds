@@ -58,13 +58,13 @@ class LocalLLMManager:
         """Load or retrieve a model from cache with/without 4-bit quantization."""
         if model_name not in cls._cache:
             cls.clear_cache()
-            logger.info(f"Loading local model: {model_name}")
+            logger.info(f"Loading local model: {model_name}", extra={"verbose": True})
             try:
                 tokenizer = AutoTokenizer.from_pretrained(model_name,trust_remote_code=True)
                 # Set padding token to avoid attention mask issues
                 if tokenizer.pad_token is None:
                     tokenizer.pad_token = tokenizer.eos_token
-                    logger.info(f"Set pad_token to eos_token: {tokenizer.eos_token}")
+                    logger.info(f"Set pad_token to eos_token: {tokenizer.eos_token}", extra={"verbose": True})
 
                 tokenizer.padding_side = "left" # Important for batch generation if ever implemented
                 quantization_config = None
@@ -75,7 +75,7 @@ class LocalLLMManager:
                     bnb_4bit_use_double_quant=True,
                     bnb_4bit_quant_type="nf4",
                     )
-                    logger.info("Using 4-bit quantization (BitsAndBytesConfig).")
+                    logger.info("Using 4-bit quantization (BitsAndBytesConfig).", extra={"verbose": True})
 
                 model = AutoModelForCausalLM.from_pretrained(
                     model_name,
@@ -100,10 +100,10 @@ class LocalLLMManager:
         """Clear specific model or entire cache to free memory."""
         if model_name:
             cls._cache.pop(model_name, None)
-            logger.info(f"Cleared cache for model: {model_name}")
+            logger.info(f"Cleared cache for model: {model_name}", extra={"verbose": True})
         else:
             cls._cache.clear()
-            logger.info("Cleared entire model cache")
+            logger.info("Cleared entire model cache", extra={"verbose": True})
     @classmethod
     def generate_response(
         cls,
@@ -150,7 +150,7 @@ class LocalLLMManager:
                     attention_mask=attention_mask,
                     **gen_kwargs,
                 )
-            logger.info("finished generation")
+            logger.info("finished generation", extra={"verbose": True})
             # Decode each generated sequence, removing the prompt part
             for i in range(num_responses):
                 # generated_outputs shape is (num_responses, seq_len)
@@ -212,20 +212,20 @@ def query(
 
           # 2. Format Prompt
         console.rule(f"[bold red]System Prompt for {step_identifier}")
-        logger.info(f"{system_message or 'None'} ")
+        logger.info(f"{system_message or 'None'} ", extra={"verbose": True})
         console.rule(f"[bold red]User Prompt for {step_identifier}")
-        logger.info(f" {user_message or 'None'} ")
+        logger.info(f" {user_message or 'None'} ", extra={"verbose": True})
 
         messages = opt_messages_to_list(system_message, user_message, convert_system_to_user=model_kwargs.pop('convert_system_to_user', False))
         if hasattr(tokenizer, "apply_chat_template"):
             try:
                 prompt_text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-                logger.info("Applied chat template to prompt.")
+                logger.info("Applied chat template to prompt.", extra={"verbose": True})
             except Exception as e:
                  logger.warning(f"Could not apply chat template ({e}). Using basic concatenation.")
                  prompt_text = (system_message or "") + "\n\n" + (user_message or "")
        
-        logger.debug(f"Generating with params:  num_return_sequences = {num_responses}, {model_kwargs}")
+        logger.debug(f"Generating with params:  num_return_sequences = {num_responses}, {model_kwargs}", extra={"verbose": True})
         
         raw_responses, input_len, output_len_first, latency_gen = LocalLLMManager.generate_response(
             model_name=model,
@@ -302,7 +302,7 @@ def process_and_execute_responses(
         # Save Raw Response
         raw_response_path = response_dir / "raw_response.txt"
         raw_response_path.write_text(response or "<Response was None>") # Handle None case
-        logger.info(f"Raw response saved to: {raw_response_path}")
+        logger.info(f"Raw response saved to: {raw_response_path}", extra={"verbose": True})
         console.print(f"[bold cyan]Raw Response {i+1}:[/bold cyan]")
         console.print((response or "<Response was None>")[:1000] + ("..." if response and len(response) > 1000 else ""))
         console.print("-" * 20)
@@ -323,7 +323,7 @@ def process_and_execute_responses(
                 try:
                     formatted_extracted_code = format_code(extracted_code)
                     code_path.write_text(formatted_extracted_code)
-                    logger.info(f"Extracted code saved to: {code_path}")
+                    logger.info(f"Extracted code saved to: {code_path}", extra={"verbose": True})
                     console.print(f"[bold green]Extracted Code {i+1}:[/bold green]")
                     console.print(Syntax(formatted_extracted_code, "python", theme="default", line_numbers=True))
                     console.print("-" * 20)
