@@ -443,7 +443,6 @@ class Agent:
 
 
         # Apply reflection if applicable
-        draft_flag  = False
         reflection_applied = False
         if draft_flag and self.acfg.ITS_Strategy=="self-reflection":  # Or based on your reflection strategy
             try:
@@ -546,10 +545,6 @@ class Agent:
         step_log_data[f"eval/submission_produced"] = 1 if submission_exists else 0
 
 
-        # ================================================================
-        # ### PLOTS START — add histogram(s) & scatter(s) here ###########
-        # These blocks *extend* step_log_data *before* you call
-        # self.wandb_run.log(...)
 
         # --- Histogram of validation metric --------------------------------
         self._metric_hist = getattr(self, "_metric_hist", [])
@@ -580,7 +575,7 @@ class Agent:
         self._bug_flags = getattr(self, "_bug_flags", [])
         self._bug_flags.append(1 if result_node.is_buggy else 0)
 
-        bug_count   = sum(self._bug_flags)          # number of buggy steps
+        bug_count   = sum(self._bug_flags)          
         clean_count = len(self._bug_flags) - bug_count
 
         bug_table = wandb.Table(
@@ -589,8 +584,7 @@ class Agent:
         )
         step_log_data["plots/bug_vs_clean"] = wandb.plot.bar(
             bug_table, "label", "count", title="Buggy vs clean steps"
-        )                                           # :contentReference[oaicite:0]{index=0}
-
+        )                                           
         # --- Bar chart: Submission produced vs missing ----------------------
         self._sub_flags = getattr(self, "_sub_flags", [])
         logger.info(f"_______________{self._sub_flags}___________________")
@@ -605,10 +599,7 @@ class Agent:
         )
         step_log_data["plots/submission_presence"] = wandb.plot.bar(
             sub_table, "label", "count", title="Submission produced vs missing"
-        )                                           # :contentReference[oaicite:1]{index=1}
-
-        # ### PLOTS END ######################################################
-        # ================================================================
+        )                                          
  
         # --- Send log data to W&B ---
         if self.wandb_run:
@@ -664,7 +655,6 @@ class Agent:
                        logger.info(f"Logged best solution code artifact for step {current_step_number}")
                   except Exception as e:
                        logger.error(f"Failed to log best code artifact: {e}")
-             # <<< END LOG >>>
 
         elif best_node:
              logger.info(f"Node {result_node.id} is not the best node (Best: {best_node.id} with metric {best_node.metric.value:.4f})")
@@ -773,9 +763,9 @@ class Agent:
             node.metric = WorstMetricValue()
 
             # <<< LOG BUGGY STATUS TO WANDB >>>
-            # if self.wandb_run:
-            #      bug_log = {"eval/buggy_reasons": "; ".join(bug_reasons)}
-            #      self.wandb_run.log(bug_log) # Log without step, will associate with last logged step
+            if self.wandb_run:
+                 bug_log = {"eval/buggy_reasons": "; ".join(bug_reasons)}
+                 self.wandb_run.log(bug_log) # Log without step, will associate with last logged step
         else:
             logger.info(f"Parsed results: Node {node.id} is not buggy")
             node.metric = MetricValue(
