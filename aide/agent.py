@@ -1,7 +1,7 @@
 import shutil
 import logging
 import random
-import weave
+import weave,textwrap
 import time
 from rich.syntax import Syntax
 from rich.console import Console
@@ -13,8 +13,8 @@ from .utils import data_preview
 from .utils.config import Config
 from .utils.metric import MetricValue, WorstMetricValue
 from .utils.response import extract_code, extract_text_up_to_code, wrap_code,trim_long_string, format_code
-from .utils.self_reflection import perform_two_step_reflection  # Adjust path if needed
-from pathlib import Path # <<< Add Path import
+from .utils.self_reflection import perform_two_step_reflection  
+from pathlib import Path 
 import os
 try:
     import wandb
@@ -62,6 +62,10 @@ review_func_spec = FunctionSpec(
                 "type": "boolean",
                 "description": "true if the metric should be minimized (i.e. a lower metric value is better, such as with MSE), false if the metric should be maximized (i.e. a higher metric value is better, such as with accuracy).",
             },
+            "code_quality": {    
+                "type": "number",
+                "description": "give a score between 0-10 on the quality of the code, where 0 is a terrible code/ non-code at all, and 9-10 is a clean code with a great value for the evaluation metric.",
+            },
         },
         "required": [
             "is_bug",
@@ -69,6 +73,7 @@ review_func_spec = FunctionSpec(
             "summary",
             "metric",
             "lower_is_better",
+            "code_quality",
         ],
     },
     description="Submit a review evaluating the output of the training script.",
@@ -400,7 +405,6 @@ class Agent:
     ):
         self.data_preview = data_preview.generate(self.cfg.workspace_dir)
 
-    # <<< MODIFY step() method >>>
     def step(self, exec_callback: ExecCallbackType, current_step_number: int): # Add current_step_number
         # clear the submission dir from previous steps
         submission_dir = self.cfg.workspace_dir / "submission" # Define once
@@ -425,20 +429,21 @@ class Agent:
             node_stage = "improve"
             result_node = self._improve(parent_node)
   
-
+        # number of lines of code
         # Log plan and initial code *before* reflection
+        plan ="\n".join(textwrap.wrap(result_node.plan, width=120))
         step_log_data = {
-            f"{node_stage}/plan": result_node.plan,
-            f"{node_stage}/parent_id": parent_node.id if parent_node else "None",
-        }
-        if self.wandb_run and self.cfg.wandb.log_code:
-             # Limit code length for logging
-             code_to_log = result_node.code[:10000] + ("\n..." if len(result_node.code) > 10000 else "")
-             step_log_data[f"{node_stage}/initial_code"] = code_to_log
+            f"{node_stage}/plan": wandb.Html(f"<pre>{plan}</pre>"),}
+     
+        # if self.wandb_run and self.cfg.wandb.log_code:
+        #      # Limit code length for logging
+        #      code_to_log = result_node.code[:10000] + ("\n..." if len(result_node.code) > 10000 else "")
+        #      step_log_data[f"{node_stage}/initial_code"] = code_to_log}
 
 
 
         # Apply reflection if applicable
+        draft_flag  = False
         reflection_applied = False
         if draft_flag and self.acfg.ITS_Strategy=="self-reflection":  # Or based on your reflection strategy
             try:
@@ -491,19 +496,24 @@ class Agent:
         result_node = self.parse_exec_result(
             node=result_node, exec_result=exec_result
             ,)
-
+        loc = len(result_node.code.splitlines())
+        analysis ="\n".join(textwrap.wrap(result_node.analysis, width=120))
         # Log execution and evaluation results
         step_log_data.update({
-            f"exec/exec_time_s": result_node.exec_time,
-            f"eval/is_buggy": result_node.is_buggy,
-            f"exec/node_id": result_node.id,
-            # Use trim_long_string for potentially long outputs
-            f"exec/term_out": trim_long_string(result_node.term_out, threshold=2000, k=1000),
-            f"eval/analysis": result_node.analysis,
+            # f"exec/exec_time_s": result_node.exec_time,
+            f"eval/is_buggy": 1 if result_node.is_buggy else 0,
+
+            f"code/loc": loc,
+            f"code/estimated_quality":self._code_quality,
+            f"exec/term_out": wandb.Html(f"<pre>{trim_long_string(result_node.term_out, threshold=2000, k=1000)}</pre>"),
+            f"eval/analysis": wandb.Html(f"<pre>{ analysis}</pre>") 
+            
         })
         if result_node.exc_type:
-            step_log_data[f"exec/exception_type"] = result_node.exc_type
-            step_log_data[f"exec/exception_info"] = str(result_node.exc_info) if result_node.exc_info else "None"
+            excution_info ="\n".join(textwrap.wrap(str(result_node.exc_info), width=120))
+            sstt = "\n".join(textwrap.wrap(result_node.exc_type, width=120))
+            step_log_data[f"exec/exception_type"] = wandb.Html(f"<pre>{sstt }</pre>") , 
+            step_log_data[f"exec/exception_info"] = wandb.Html(f"<pre>{excution_info }</pre>") if result_node.exc_info else "None"
 
         if not result_node.is_buggy and result_node.metric and result_node.metric.value is not None:
             step_log_data[f"eval/validation_metric"] = result_node.metric.value
@@ -523,13 +533,83 @@ class Agent:
             )
             # Update the logged data if W&B run exists
             if self.wandb_run:
-                step_log_data[f"eval/is_buggy"] = True
+                # step_log_data[f"eval/is_buggy"] = True
                 step_log_data[f"eval/validation_metric"] = float('nan')
+                step_log_data[f'{node_stage}/final_code'] = wandb.Html(f"<pre>{result_node.code }</pre>") 
+            if hasattr(result_node, 'buggy_reasons') and result_node.buggy_reasons:
+                buggy_reason = "; ".join(result_node.buggy_reasons)
+                step_log_data['eval/buggy_reasons'] =  wandb.Html(f"<pre>{ buggy_reason}</pre>")  
+            elif result_node.is_buggy and result_node.analysis != "Feedback LLM failed.":
+                # If it's buggy but no specific reasons were extracted, log the general analysis
+                step_log_data['eval/buggy_summary'] = wandb.Html(f"<pre>{result_node.analysis}</pre>") 
+
+        step_log_data[f"eval/submission_produced"] = 1 if submission_exists else 0
 
 
-        step_log_data[f"eval/submission_produced"] = submission_exists
+        # ================================================================
+        # ### PLOTS START — add histogram(s) & scatter(s) here ###########
+        # These blocks *extend* step_log_data *before* you call
+        # self.wandb_run.log(...)
 
+        # --- Histogram of validation metric --------------------------------
+        self._metric_hist = getattr(self, "_metric_hist", [])
+        if result_node.metric and result_node.metric.value is not None:
+            self._metric_hist.append(result_node.metric.value)
 
+        if len(self._metric_hist) >= 3:          # wait until we have a few points
+            tbl = wandb.Table(
+                data=[[v] for v in self._metric_hist], columns=["val"]
+            )
+            step_log_data["plots/val_metric_hist"] = wandb.plot.histogram(
+                tbl, "val", title="Validation-metric distribution"
+            )
+
+        # --- Scatter: LOC vs Validation metric ------------------------------
+        self._loc_vs_val = getattr(
+            self, "_loc_vs_val", wandb.Table(columns=["loc", "val"])
+        )
+        if result_node.metric and result_node.metric.value is not None:
+            self._loc_vs_val.add_data(loc, result_node.metric.value)
+
+        step_log_data["plots/loc_vs_val"] = wandb.plot.scatter(
+            self._loc_vs_val, "loc", "val",
+            title="Lines-of-code vs validation metric"
+        )
+        # --- Bar chart: Buggy (1) vs Clean (0) ------------------------------
+        # Keep a rolling list of 0/1 flags for every step
+        self._bug_flags = getattr(self, "_bug_flags", [])
+        self._bug_flags.append(1 if result_node.is_buggy else 0)
+
+        bug_count   = sum(self._bug_flags)          # number of buggy steps
+        clean_count = len(self._bug_flags) - bug_count
+
+        bug_table = wandb.Table(
+            data=[["Buggy", bug_count], ["Clean", clean_count]],
+            columns=["label", "count"],
+        )
+        step_log_data["plots/bug_vs_clean"] = wandb.plot.bar(
+            bug_table, "label", "count", title="Buggy vs clean steps"
+        )                                           # :contentReference[oaicite:0]{index=0}
+
+        # --- Bar chart: Submission produced vs missing ----------------------
+        self._sub_flags = getattr(self, "_sub_flags", [])
+        logger.info(f"_______________{self._sub_flags}___________________")
+        self._sub_flags.append(1 if submission_exists else 0)
+
+        with_sub   = sum(self._sub_flags)                 # steps that made a CSV
+        without_sub = len(self._sub_flags) - with_sub
+
+        sub_table = wandb.Table(
+            data=[["Has submission", with_sub], ["No submission", without_sub]],
+            columns=["label", "count"],
+        )
+        step_log_data["plots/submission_presence"] = wandb.plot.bar(
+            sub_table, "label", "count", title="Submission produced vs missing"
+        )                                           # :contentReference[oaicite:1]{index=1}
+
+        # ### PLOTS END ######################################################
+        # ================================================================
+ 
         # --- Send log data to W&B ---
         if self.wandb_run:
             self.wandb_run.log(step_log_data, step=current_step_number)
@@ -635,7 +715,7 @@ class Agent:
                     ),
                 )
                 # Check if required keys are present
-                if all(k in review_response for k in ["is_bug", "has_csv_submission", "summary", "metric", "lower_is_better"]):
+                if all(k in review_response for k in ["is_bug", "has_csv_submission", "summary", "metric", "lower_is_better","code_quality"]):
                     break # Success
                 else:
                     logger.warning(f"Feedback LLM response missing keys (attempt {attempt+1}/{max_retries}). Response: {review_response}")
@@ -650,7 +730,8 @@ class Agent:
                          "has_csv_submission": False,
                          "summary": "Failed to get feedback from LLM.",
                          "metric": None,
-                         "lower_is_better": True # Default assumption
+                         "lower_is_better": True, # Default assumption
+                         "code_quality": 0,
                     }
                     break 
 
@@ -659,7 +740,7 @@ class Agent:
         if not isinstance(metric_value, (float, int)):
             metric_value = None # Set to None if not a valid number
 
-
+        self._code_quality = review_response.get("code_quality",0)
         # do an extra check, to catch cases where judge fails
         submission_path = self.cfg.workspace_dir / "submission" / "submission.csv"
         has_csv_submission_actual = submission_path.exists()
@@ -692,9 +773,9 @@ class Agent:
             node.metric = WorstMetricValue()
 
             # <<< LOG BUGGY STATUS TO WANDB >>>
-            if self.wandb_run:
-                 bug_log = {"eval/buggy_reasons": "; ".join(bug_reasons)}
-                 self.wandb_run.log(bug_log) # Log without step, will associate with last logged step
+            # if self.wandb_run:
+            #      bug_log = {"eval/buggy_reasons": "; ".join(bug_reasons)}
+            #      self.wandb_run.log(bug_log) # Log without step, will associate with last logged step
         else:
             logger.info(f"Parsed results: Node {node.id} is not buggy")
             node.metric = MetricValue(

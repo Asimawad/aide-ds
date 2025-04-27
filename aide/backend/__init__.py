@@ -17,8 +17,8 @@ def determine_provider(model: str) -> str:
     
     if model.startswith("gpt-") or model.startswith("o1-") or model.startswith("o3-"):
         return "openai"
-    elif model.startswith("deepseek-"):
-        return "deepseek"
+    # elif model.startswith("deepseek-"):
+    #     return "deepseek"
     else:
         return "HF"
 

@@ -60,8 +60,7 @@ aide data_dir="aide/example_tasks/spooky-author-identification" goal="Predict th
     --device cuda &
 
 
-aide data_dir="aide/example_tasks/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." agent.code.model="Qwen/Qwen2-0.5B-Instruct" agent.steps=1 inference_engine=vllm
-
+aide data_dir="aide/example_tasks/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." agent.code.model=deepseek-r1 agent.steps=2
 
 aide data_dir="example_tasks/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." agent.code.model=deepseek-r1:latest wandb.project="my-aide-experiments"
 ```
@@ -172,8 +171,8 @@ By repeatedly applying these steps, AIDE navigates the vast space of possible so
 aide data_dir="aide/example_tasks/spooky-author-identification" \
       goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" \
       eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." \
-      agent.code.model=deepseek-ai/DeepSeek-R1-Distill-Qwen-14B \
-      agent.steps=1 \
+      agent.code.model=deepseek-r1 \
+      agent.steps=3 \
       agent.code.max_new_tokens=2048 \
       exec.timeout=600 \
       agent.code.temp=0.6 \

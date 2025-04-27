@@ -249,6 +249,22 @@ def run():
         if wandb_run:
             logger.info("Finishing W&B Run...")
             try:
+                # --- Calculate and Log Steps to First Working Code (WO) ---
+                wo_step = None
+                for node in journal.nodes:
+                    if not node.is_buggy:
+                        wo_step = node.step
+                        break # Found the first non-buggy node
+                
+                if wo_step is not None:
+                    wandb.summary["steps_to_first_working_code"] = wo_step
+                    logger.info(f"Logged Steps to First Working Code (WO): {wo_step}")
+                else:
+                    # Log something to indicate it never produced working code
+                    # You could log a value larger than max steps, or just not log the key.
+                    # Logging a distinct value like -1 or float('inf') might be good.
+                    wandb.summary["steps_to_first_working_code"] = cfg.agent.steps + 1 #float('inf') # Or maybe ?
+                    logger.info("Logged Steps to First Working Code (WO): Never produced working code.")
                 best_node = journal.get_best_node()
                 if best_node:
                     # Log best metric to summary
