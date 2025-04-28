@@ -38,10 +38,10 @@ class WandbConfig:
 class StageConfig:
     model: str
     temp: float
-    max_new_tokens:  int
-    top_p : float
-    top_k : int
-    num_return_sequences : int
+    max_new_tokens: int
+    top_p: float = 1.0
+    top_k: int = 40
+    num_return_sequences: int = 1
 
 
 @dataclass
@@ -54,18 +54,22 @@ class SearchConfig:
 @dataclass
 class AgentConfig:
     steps: int
-    
     time_limit: int
     k_fold_validation: int
     expose_prediction: bool
     data_preview: bool
     convert_system_to_user: bool
     obfuscate: bool
-    ITS_Strategy:str 
+    ITS_Strategy: str  # Can be "self-reflection" or "mcts"
+
+    # MCTS specific parameters
+    mcts_iterations: int = 10  # Number of MCTS iterations per step
+    mcts_exploration_weight: float = 1.414  # UCB exploration parameter
+    mcts_max_depth: int = 5  # Maximum tree depth
+    mcts_parallel_simulations: int = 1  # Number of parallel simulations
 
     code: StageConfig
     feedback: StageConfig
-
     search: SearchConfig
 
 

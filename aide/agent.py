@@ -1,7 +1,7 @@
 import shutil
 import logging
 import random
-import weave,textwrap
+import textwrap
 import time
 from rich.syntax import Syntax
 from rich.console import Console
@@ -184,7 +184,6 @@ class Agent:
                 "There should be no additional headings or text in your response. Just natural language text followed by a newline and then the markdown code block. "
                 "explicitly,structure your answer exactly like this: ") + fmt
         }
-    @weave.op() 
     def plan_and_code_query(self, prompt,excute, retries=3) -> tuple[str, str]:
         """Generate a natural language plan + code in the same LLM call and split them apart."""
         system_prompt = {"SYSTEM":"You are a Kaggle Grandmaster. you can plan , implement, debug and improve and machine learning engineering code," ,
@@ -429,21 +428,22 @@ class Agent:
             node_stage = "improve"
             result_node = self._improve(parent_node)
   
-        # number of lines of code
         # Log plan and initial code *before* reflection
         plan ="\n".join(textwrap.wrap(result_node.plan, width=120))
         step_log_data = {
             f"{node_stage}/plan": wandb.Html(f"<pre>{plan}</pre>"),}
      
         # if self.wandb_run and self.cfg.wandb.log_code:
-        #      # Limit code length for logging
-        #      code_to_log = result_node.code[:10000] + ("\n..." if len(result_node.code) > 10000 else "")
-        #      step_log_data[f"{node_stage}/initial_code"] = code_to_log}
+             # Limit code length for logging
+            #  code_to_log = result_node.code[:10000] + ("\n..." if len(result_node.code) > 10000 else "")
+            #  step_log_data[f"{node_stage}/initial_code"] = wandb.Html(f"<pre>{code_to_log}</pre>")
+
 
 
 
         # Apply reflection if applicable
         reflection_applied = False
+        draft_flag = False
         if draft_flag and self.acfg.ITS_Strategy=="self-reflection":  # Or based on your reflection strategy
             try:
                 console.rule(f"[cyan]Agent Step {current_step_number} - Stage : Self Reflection")
@@ -459,18 +459,19 @@ class Agent:
                     )
                     reflection_applied = True
                     # Log reflection results
-                    step_log_data[f"{node_stage}/reflection_plan"] = reflection_plan
+                    # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>") 
                     if self.wandb_run and self.cfg.wandb.log_code:
                          reflected_code_to_log = reflection_code[:10000] + ("\n..." if len(reflection_code) > 10000 else "")
-                         step_log_data[f"{node_stage}/reflected_code"] = reflected_code_to_log
+                        #  step_log_data[f"{node_stage}/reflected_code"] = wandb.Html(f"<pre>{reflected_code_to_log}</pre>") 
 
                 elif reflection_plan != "No specific errors found requiring changes.":
                     logger.info(
                         f"Node {result_node.id} self-reflection completed, but no changes applied."
                     )
-                    step_log_data[f"{node_stage}/reflection_plan"] = reflection_plan # Log even if no code change
+                    # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>")  # Log even if no code change
                 else:
-                     step_log_data[f"{node_stage}/reflection_plan"] = "No errors found by reflection."
+                    message = "No errors found by reflection."
+                    # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{message}</pre>")  
 
 
             except Exception as e:
@@ -478,7 +479,7 @@ class Agent:
                     f"Error during self-reflection for node {result_node.id}: {e}",
                     exc_info=True,
                 )
-                step_log_data[f"{node_stage}/reflection_error"] = str(e)
+                # step_log_data[f"{node_stage}/reflection_error"] = str(e)
 
 
         # Execute the potentially reflected code
@@ -495,28 +496,29 @@ class Agent:
         result_node = self.parse_exec_result(
             node=result_node, exec_result=exec_result
             ,)
+
         loc = len(result_node.code.splitlines())
         analysis ="\n".join(textwrap.wrap(result_node.analysis, width=120))
         # Log execution and evaluation results
         step_log_data.update({
-            # f"exec/exec_time_s": result_node.exec_time,
+            f"exec/exec_time_s": exec_duration,
             f"eval/is_buggy": 1 if result_node.is_buggy else 0,
 
             f"code/loc": loc,
-            f"code/estimated_quality":self._code_quality,
-            f"exec/term_out": wandb.Html(f"<pre>{trim_long_string(result_node.term_out, threshold=2000, k=1000)}</pre>"),
+            f"code/estimated_quality":int(self._code_quality),
+            # f"exec/term_out": wandb.Html(f"<pre>{trim_long_string(result_node.term_out, threshold=2000, k=1000)}</pre>"),
             f"eval/analysis": wandb.Html(f"<pre>{ analysis}</pre>") 
             
         })
-        if result_node.exc_type:
-            excution_info ="\n".join(textwrap.wrap(str(result_node.exc_info), width=120))
-            sstt = "\n".join(textwrap.wrap(result_node.exc_type, width=120))
-            step_log_data[f"exec/exception_type"] = wandb.Html(f"<pre>{sstt }</pre>") , 
-            step_log_data[f"exec/exception_info"] = wandb.Html(f"<pre>{excution_info }</pre>") if result_node.exc_info else "None"
+        # if result_node.exc_type:
+        #     excution_info ="\n".join(textwrap.wrap(str(result_node.exc_info), width=120))
+        #     sstt = "\n".join(textwrap.wrap(result_node.exc_type, width=120))
+            # step_log_data[f"exec/exception_type"] = wandb.Html(f"<pre>{sstt }</pre>") , 
+            # step_log_data[f"exec/exception_info"] = wandb.Html(f"<pre>{excution_info }</pre>") if result_node.exc_info else "None"
 
         if not result_node.is_buggy and result_node.metric and result_node.metric.value is not None:
             step_log_data[f"eval/validation_metric"] = result_node.metric.value
-            step_log_data[f"eval/metric_maximize"] = result_node.metric.maximize
+
         else:
             # Log a placeholder if metric is invalid/buggy
             step_log_data[f"eval/validation_metric"] = float('nan') # W&B handles NaN well
@@ -531,22 +533,22 @@ class Agent:
                 f"Actually, node {result_node.id} did not produce a submission.csv"
             )
             # Update the logged data if W&B run exists
-            if self.wandb_run:
-                # step_log_data[f"eval/is_buggy"] = True
-                step_log_data[f"eval/validation_metric"] = float('nan')
-                step_log_data[f'{node_stage}/final_code'] = wandb.Html(f"<pre>{result_node.code }</pre>") 
-            if hasattr(result_node, 'buggy_reasons') and result_node.buggy_reasons:
-                buggy_reason = "; ".join(result_node.buggy_reasons)
-                step_log_data['eval/buggy_reasons'] =  wandb.Html(f"<pre>{ buggy_reason}</pre>")  
-            elif result_node.is_buggy and result_node.analysis != "Feedback LLM failed.":
-                # If it's buggy but no specific reasons were extracted, log the general analysis
-                step_log_data['eval/buggy_summary'] = wandb.Html(f"<pre>{result_node.analysis}</pre>") 
+            # if self.wandb_run:
 
+                # step_log_data[f"eval/validation_metric"] = float('nan')
+                # step_log_data[f'{node_stage}/final_code'] = wandb.Html(f"<pre>{result_node.code }</pre>") 
+            # if hasattr(result_node, 'buggy_reasons') and result_node.buggy_reasons:
+            #     buggy_reason = "; ".join(result_node.buggy_reasons)
+            #     step_log_data['eval/buggy_reasons'] =  wandb.Html(f"<pre>{ buggy_reason}</pre>")  
+            # elif result_node.is_buggy and result_node.analysis != "Feedback LLM failed.":
+            #     # If it's buggy but no specific reasons were extracted, log the general analysis
+            #     step_log_data['eval/buggy_summary'] = wandb.Html(f"<pre>{result_node.analysis}</pre>") 
+# 
         step_log_data[f"eval/submission_produced"] = 1 if submission_exists else 0
 
 
 
-        # --- Histogram of validation metric --------------------------------
+        # --- Histogram of validation metric 
         self._metric_hist = getattr(self, "_metric_hist", [])
         if result_node.metric and result_node.metric.value is not None:
             self._metric_hist.append(result_node.metric.value)
@@ -559,7 +561,7 @@ class Agent:
                 tbl, "val", title="Validation-metric distribution"
             )
 
-        # --- Scatter: LOC vs Validation metric ------------------------------
+        # --- Scatter: LOC vs Validation metric 
         self._loc_vs_val = getattr(
             self, "_loc_vs_val", wandb.Table(columns=["loc", "val"])
         )
@@ -570,7 +572,7 @@ class Agent:
             self._loc_vs_val, "loc", "val",
             title="Lines-of-code vs validation metric"
         )
-        # --- Bar chart: Buggy (1) vs Clean (0) ------------------------------
+        # --- Bar chart: Buggy (1) vs Clean (0) 
         # Keep a rolling list of 0/1 flags for every step
         self._bug_flags = getattr(self, "_bug_flags", [])
         self._bug_flags.append(1 if result_node.is_buggy else 0)
@@ -585,7 +587,7 @@ class Agent:
         step_log_data["plots/bug_vs_clean"] = wandb.plot.bar(
             bug_table, "label", "count", title="Buggy vs clean steps"
         )                                           
-        # --- Bar chart: Submission produced vs missing ----------------------
+        # --- Bar chart: Submission produced vs missing 
         self._sub_flags = getattr(self, "_sub_flags", [])
         logger.info(f"_______________{self._sub_flags}___________________")
         self._sub_flags.append(1 if submission_exists else 0)
@@ -621,7 +623,7 @@ class Agent:
 
              if submission_exists:
                  shutil.copy(submission_path, best_submission_dir)
-                 # <<< LOG BEST SUBMISSION ARTIFACT IMMEDIATELY >>>
+
                  if self.wandb_run and self.cfg.wandb.log_artifacts:
                      try:
                          artifact_sub = wandb.Artifact(f'best_submission', type='submission')
@@ -634,7 +636,7 @@ class Agent:
                          wandb.summary["best_node_step"] = best_node.step
                      except Exception as e:
                           logger.error(f"Failed to log best submission artifact: {e}")
-                 # <<< END LOG >>>
+
              else:
                   logger.warning(f"Best node {result_node.id} did not produce submission.csv, cannot cache/log artifact.")
 
@@ -646,7 +648,7 @@ class Agent:
              with open(best_solution_dir / "node_id.txt", "w") as f:
                  f.write(str(result_node.id))
 
-             # <<< LOG BEST CODE ARTIFACT IMMEDIATELY >>>
+
              if self.wandb_run and self.cfg.wandb.log_artifacts:
                   try:
                        artifact_code = wandb.Artifact(f'best_solution_code', type='code')
@@ -660,7 +662,6 @@ class Agent:
              logger.info(f"Node {result_node.id} is not the best node (Best: {best_node.id} with metric {best_node.metric.value:.4f})")
         self.current_step += 1
 
-    @weave.op() 
     def parse_exec_result(self, node: Node, exec_result: ExecutionResult) -> Node:
         logger.info(f"Agent is parsing execution results for node {node.id}")
 
@@ -762,10 +763,10 @@ class Agent:
 
             node.metric = WorstMetricValue()
 
-            # <<< LOG BUGGY STATUS TO WANDB >>>
-            if self.wandb_run:
-                 bug_log = {"eval/buggy_reasons": "; ".join(bug_reasons)}
-                 self.wandb_run.log(bug_log) # Log without step, will associate with last logged step
+
+        #     if self.wandb_run:
+        #          bug_log = {"eval/buggy_reasons": "; ".join(bug_reasons)}
+        #          self.wandb_run.log(bug_log) # Log without step, will associate with last logged step
         else:
             logger.info(f"Parsed results: Node {node.id} is not buggy")
             node.metric = MetricValue(
