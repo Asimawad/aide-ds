@@ -62,15 +62,15 @@ class AgentConfig:
     obfuscate: bool
     ITS_Strategy: str  # Can be "self-reflection" or "mcts"
 
+    code: StageConfig
+    feedback: StageConfig
+    search: SearchConfig
+
     # MCTS specific parameters
     mcts_iterations: int = 10  # Number of MCTS iterations per step
     mcts_exploration_weight: float = 1.414  # UCB exploration parameter
     mcts_max_depth: int = 5  # Maximum tree depth
     mcts_parallel_simulations: int = 1  # Number of parallel simulations
-
-    code: StageConfig
-    feedback: StageConfig
-    search: SearchConfig
 
 
 @dataclass
