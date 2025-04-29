@@ -46,7 +46,6 @@ pytorch-lightning
 sacrebleu
 scikit-image
 scikit-optimize
-scikit-surprise
 scipy
 spacy
 torchmetrics
