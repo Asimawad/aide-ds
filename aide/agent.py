@@ -443,7 +443,6 @@ class Agent:
 
         # Apply reflection if applicable
         reflection_applied = False
-        draft_flag = False
         if draft_flag and self.acfg.ITS_Strategy=="self-reflection":  # Or based on your reflection strategy
             try:
                 console.rule(f"[cyan]Agent Step {current_step_number} - Stage : Self Reflection")
@@ -589,7 +588,7 @@ class Agent:
         )                                           
         # --- Bar chart: Submission produced vs missing 
         self._sub_flags = getattr(self, "_sub_flags", [])
-        logger.info(f"_______________{self._sub_flags}___________________")
+
         self._sub_flags.append(1 if submission_exists else 0)
 
         with_sub   = sum(self._sub_flags)                 # steps that made a CSV
