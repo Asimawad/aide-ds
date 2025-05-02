@@ -78,7 +78,7 @@ def query(
             model_kwargs["max_completion_tokens"] = max_tokens
         if reasoning_effort:
             model_kwargs["reasoning_effort"] = reasoning_effort
-    elif provider == "HF":
+    elif provider == "HF" or provider == "vllm" :
         # Standard parameters for other models
         if max_tokens is not None:
             model_kwargs["max_new_tokens"] = max_tokens

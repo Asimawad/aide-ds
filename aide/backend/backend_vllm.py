@@ -55,7 +55,6 @@ def query(
     user_message: Optional[str] = None,
     model: str = "Qwen/Qwen2-0.5B-Instruct", # Model name is passed to the server API call
     temperature: float = 0.7,
-    max_new_tokens: int = 4096, # Renamed from 'max_tokens' for clarity, will be mapped below
     func_spec=None, # Add func_spec argument (even if ignored by vLLM server) to match signature
     convert_system_to_user=False, # Add convert_system_to_user argument for signature match
     **model_kwargs: Any,
@@ -74,7 +73,7 @@ def query(
     # Include common parameters vLLM's OpenAI endpoint accepts
     api_params = {
         "temperature": temperature,
-        "max_tokens": max_new_tokens, # Map internal 'max_new_tokens' to API's 'max_tokens'
+        "max_tokens": model_kwargs.get("max_new_tokens"), # Map internal 'max_new_tokens' to API's 'max_tokens'
         "top_p": model_kwargs.get("top_p"),
         "top_k": model_kwargs.get("top_k"), # vLLM supports top_k, but might need specific value like -1 to disable
         "stop": model_kwargs.get("stop"),
