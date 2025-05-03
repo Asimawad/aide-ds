@@ -2,7 +2,7 @@
 accelerate>=1.6.0
 backoff
 wandb>=0.19.10
-bitsandbytes
+bitsandbytes>=0.45.5
 black
 coolname
 dataclasses-json
@@ -19,10 +19,13 @@ python-igraph
 rich
 shutup
 tqdm
-torch # --index-url https://download.pytorch.org/whl/cu126
+transformers  
+torch==2.6.0+cu124     --index-url https://download.pytorch.org/whl/cu124                   # was torch or torch==2.2.0
+torchvision==0.21.0+cu124                
+torchaudio==2.6.0+cu124                   
+vllm==0.8.5.post1                        
 transformers
 setuptools
-vllm
 packaging
 wheel
 s3fs
@@ -50,6 +53,5 @@ scipy
 spacy
 torchmetrics
 torchtext
-torchaudio
 torchinfo
 torch-geometric
