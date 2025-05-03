@@ -20,7 +20,7 @@ rich
 shutup
 tqdm
 transformers  
-torch==2.6.0+cu124     --index-url https://download.pytorch.org/whl/cu124                   # was torch or torch==2.2.0
+torch==2.6.0+cu124    # --index-url https://download.pytorch.org/whl/cu124                   # was torch or torch==2.2.0
 torchvision==0.21.0+cu124                
 torchaudio==2.6.0+cu124                   
 vllm==0.8.5.post1                        
