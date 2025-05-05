@@ -3,6 +3,7 @@ import logging
 import shutil
 import sys
 import os
+from .utils import copytree
 os.environ['WANDB_API_KEY'] ="8ca0d241dd66f5a643d64a770d61ad066f937c48"
 try:
     import wandb
@@ -33,6 +34,7 @@ from rich.markdown import Markdown
 from rich.status import Status
 from rich.tree import Tree
 from .utils.config import load_task_desc, prep_agent_workspace, save_run, load_cfg
+from .utils.wandb_retreival import get_wb_data
 
 
 class VerboseFilter(logging.Filter):
@@ -128,7 +130,7 @@ def run():
     logger.addHandler(console_handler)
 
     logger.info(f'Starting run "{cfg.exp_name}"')
- # <<< INITIALIZE WANDB RUN >>>
+
     wandb_run = None
     if wandb and cfg.wandb.enabled:
         try:
@@ -144,7 +146,7 @@ def run():
         except Exception as e:
             logger.error(f"Failed to initialize W&B: {e}")
             wandb_run = None # Ensure it's None if init fails
-    # <<< END INITIALIZE WANDB RUN >>>
+
     task_desc = load_task_desc(cfg)
     task_desc_str = backend.compile_prompt_to_md(task_desc)
 
@@ -230,13 +232,16 @@ def run():
                 logger.info(journal_to_string_tree(journal))
             save_run(cfg, journal) # Save progress locally
             global_step = len(journal)
-    finally: # Add finally block
-        interpreter.cleanup_session()
+    finally: # Add finally block - This block runs no matter what.
+        # Clean up any other resources used by the program
+        interpreter.cleanup_session() 
 
+        # Check if a W&B run was successfully started
         if wandb_run:
             logger.info("Finishing W&B Run...")
             try:
-                # --- Calculate and Log Steps to First Working Code (WO) ---
+                # --- Log Summary Statistics ---
+                # These appear in the 'Summary' section of your W&B run page.
                 wo_step = None
                 for node in journal.nodes:
                     if not node.is_buggy:
@@ -247,55 +252,44 @@ def run():
                     wandb.summary["steps_to_first_working_code"] = wo_step
                     logger.info(f"Logged Steps to First Working Code (WO): {wo_step}")
                 else:
-
-                    wandb.summary["steps_to_first_working_code"] = float('inf')  # Or maybe ? or   cfg.agent.steps + 1 #
+                    wandb.summary["steps_to_first_working_code"] = float('inf') # Or a large number like cfg.agent.steps + 1
                     logger.info("Logged Steps to First Working Code (WO): Never produced working code.")
+
                 best_node = journal.get_best_node()
                 if best_node:
-                    # Log best metric to summary
                     wandb.summary["best_validation_metric"] = best_node.metric.value
                     wandb.summary["best_node_id"] = best_node.id
                     wandb.summary["best_node_step"] = best_node.step
 
-                    if cfg.wandb.log_artifacts:
-                         # Log best solution code as artifact
-                         best_code_path = cfg.log_dir / "best_solution.py"
-                         if best_code_path.exists():
-                              artifact_code = wandb.Artifact(f'solution_code_{wandb_run.id}', type='code')
-                              artifact_code.add_file(str(best_code_path))
-                              wandb_run.log_artifact(artifact_code)
-                              logger.info(f"Logged best solution code artifact: {best_code_path}")
+                # --- Log Artifacts (Consolidated Section) ---
+                # This section collects various files/folders and logs them together.
+                if cfg.wandb.log_artifacts: # Check if artifact logging is enabled
+                    # local_logs_dir
+                    bst_sub = cfg.workspace_dir / "best_submission"
+                    if bst_sub.exists():
+                        copytree(bst_sub,dst= cfg.log_dir, use_symlinks=True)
+                    
+                    wandb.save(f"logs/{cfg.exp_name}/*", base_path="logs")
+                    wandb.save(f"workspaces/{cfg.exp_name}/best_submission/*",base_path="logs")
 
-                         # Log best submission as artifact
-                         best_submission_path = cfg.workspace_dir / "best_submission" / "submission.csv"
-                         if best_submission_path.exists():
-                              artifact_sub = wandb.Artifact(f'submission_{wandb_run.id}', type='submission')
-                              artifact_sub.add_file(str(best_submission_path))
-                              wandb_run.log_artifact(artifact_sub)
-                              logger.info(f"Logged best submission artifact: {best_submission_path}")
-                         else:
-                              logger.warning("Best submission file not found for W&B artifact logging.")
-
-
-                # Log the final journal as an artifact
-                if cfg.wandb.log_artifacts:
-                    results_path = cfg.workspace_dir / ""
-                    journal_path = cfg.log_dir / "journal.json"
-                    filtered_journal_path = cfg.log_dir / "filtered_journal.json"
-                    if journal_path.exists():
-                        artifact_journal = wandb.Artifact(f'journal_{wandb_run.id}', type='journal')
-                        artifact_journal.add_file(str(journal_path))
-                        if filtered_journal_path.exists():
-                             artifact_journal.add_file(str(filtered_journal_path))
-                        wandb_run.log_artifact(artifact_journal)
-                        logger.info("Logged journal artifact.")
+                # --- Finish the W&B Run ---
 
                 wandb_run.finish()
                 logger.info("W&B Run finished.")
-            except Exception as e:
-                logger.error(f"Error during W&B finalization: {e}")
-                if wandb_run: # Try finishing again if error occurred before finish
-                    wandb_run.finish()
 
+            except Exception as e_finalization:
+                # Catch any errors during the overall W&B finalization process (summary, artifacts, finish)
+                logger.error(f"Error during W&B finalization: {e_finalization}")
+                if wandb_run: 
+                    # Try to finish the run one last time even if an error occurred
+                    # This prevents the run from staying in a "running" state indefinitely
+                    try:
+                         wandb_run.finish()
+                         logger.info("W&B Run finished after encountering an error.")
+                    except Exception as e_finish_retry:
+                         logger.error(f"Error during W&B finish retry: {e_finish_retry}")
+            get_wb_data()
+
+# Assuming 'run()' function exists elsewhere and contains the main program logic
 if __name__ == "__main__":
     run()
