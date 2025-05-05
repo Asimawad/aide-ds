@@ -17,6 +17,7 @@ from aide.journal import Journal, filter_journal
 
 from . import tree_export
 from . import copytree, preproc_data, serialize
+import re
 
 shutup.mute_warnings()
 logger = logging.getLogger("aide")
@@ -153,7 +154,8 @@ def prep_cfg(cfg: Config):
     top_workspace_dir.mkdir(parents=True, exist_ok=True)
 
     # generate experiment name and prefix with consecutive index
-    cfg.exp_name = cfg.exp_name or coolname.generate_slug(3)
+    experiement_id = str(cfg.data_dir.name)+"_"+ cfg.agent.code.model+"_"+ cfg.agent.ITS_Strategy +"_|"+str(cfg.agent.steps)+"_steps_|"
+    cfg.exp_name = cfg.exp_name or experiement_id # coolname.generate_slug(3)
 
     cfg.log_dir = (top_log_dir / cfg.exp_name).resolve()
     cfg.workspace_dir = (top_workspace_dir / cfg.exp_name).resolve()
@@ -265,3 +267,17 @@ def output_file_or_placeholder(file: Path):
             return json.dumps(json.loads(file.read_text()), indent=4)
     else:
         return f"File not found."
+
+
+# # Using regular expression to extract the competition name
+# var = "/home/asim/Desktop/aide-ds/aide/example_tasks/house_prices"
+# competition_name_regex = re.search(r'[^/]+$', var).group()
+# print(competition_name_regex)  # Output: house_prices
+
+# # Using pathlib to extract the competition name from a PosixPath
+# var_path = Path(var)
+# competition_name_pathlib = var_path.name
+# print(competition_name_pathlib)  # Output: house_prices
+
+# i  want to parse this var variable using regular expression in such a way that I only get the competetinon name. the last string after the last /
+# also, assuming that this is not a string but rather a posix path, how can I achoev the same objective

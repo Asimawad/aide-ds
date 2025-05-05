@@ -200,6 +200,7 @@ def run():
             prog,
             status,
         )
+
         right = tree
         wide = Group(*file_paths)
 
@@ -215,35 +216,23 @@ def run():
             subtitle="Press [b]Ctrl+C[/b] to stop the run",
         )
 
-    # while global_step <  cfg.agent.steps:    #PLEASE REVISE THIS HARCODED THING
-    #     agent.step(exec_callback=exec_callback)
-    #     # on the last step, print the tree
-    #     if global_step == cfg.agent.steps - 1:
-    #         logger.info(journal_to_string_tree(journal))
-    #     save_run(cfg, journal)
-    #     global_step = len(journal)
-    # interpreter.cleanup_session()
 
     # Main loop (Add try...finally to ensure wandb.finish)
-    try: # <<< Add try block
+    try: # 
         while global_step < cfg.agent.steps:
-            # <<< Use the live display >>>
-            # Instead of live() context manager, update it inside the loop
-            # if console_handler.level <= logging.INFO: # Check if INFO level is active for console
-            #    prog.console.print(generate_live()) # Print the live view once per step
 
-            # <<< Pass current step to agent.step for logging >>>
+
             agent.step(exec_callback=exec_callback, current_step_number=global_step)
-            # <<< END Pass >>>
+
 
             # on the last step, print the tree
             if global_step == cfg.agent.steps - 1:
                 logger.info(journal_to_string_tree(journal))
             save_run(cfg, journal) # Save progress locally
             global_step = len(journal)
-    finally: # <<< Add finally block
+    finally: # Add finally block
         interpreter.cleanup_session()
-        # <<< LOG FINAL RESULTS AND FINISH WANDB RUN >>>
+
         if wandb_run:
             logger.info("Finishing W&B Run...")
             try:
@@ -258,10 +247,8 @@ def run():
                     wandb.summary["steps_to_first_working_code"] = wo_step
                     logger.info(f"Logged Steps to First Working Code (WO): {wo_step}")
                 else:
-                    # Log something to indicate it never produced working code
-                    # You could log a value larger than max steps, or just not log the key.
-                    # Logging a distinct value like -1 or float('inf') might be good.
-                    wandb.summary["steps_to_first_working_code"] = cfg.agent.steps + 1 #float('inf') # Or maybe ?
+
+                    wandb.summary["steps_to_first_working_code"] = float('inf')  # Or maybe ? or   cfg.agent.steps + 1 #
                     logger.info("Logged Steps to First Working Code (WO): Never produced working code.")
                 best_node = journal.get_best_node()
                 if best_node:
@@ -292,6 +279,7 @@ def run():
 
                 # Log the final journal as an artifact
                 if cfg.wandb.log_artifacts:
+                    results_path = cfg.workspace_dir / ""
                     journal_path = cfg.log_dir / "journal.json"
                     filtered_journal_path = cfg.log_dir / "filtered_journal.json"
                     if journal_path.exists():
@@ -308,7 +296,6 @@ def run():
                 logger.error(f"Error during W&B finalization: {e}")
                 if wandb_run: # Try finishing again if error occurred before finish
                     wandb_run.finish()
-        # <<< END LOG FINAL >>>
 
 if __name__ == "__main__":
     run()

@@ -21,7 +21,8 @@ Make sure you have uv and `Python>=3.11` installed and run:
 ```bash
 uv venv .aide-ds --python 3.11 
 source .aide-ds/bin/activate
-uv pip install -e .
+uv pip install  --index-strategy unsafe-best-match  --extra-index-url https://download.pytorch.org/whl/cu124 -e .
+
 ```
 Also install `unzip` to allow the agent to autonomously extract your data.
 
