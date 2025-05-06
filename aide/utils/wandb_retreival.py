@@ -10,7 +10,7 @@ WANDB_PROJECT = "MLE_BENCH"
 
 WANDB_RUN_NAME = cfg.wandb.run_name
 
-DOWNLOAD_DIR = "./"
+DOWNLOAD_DIR = "./logs"
 
 FILE_FILTER_PATTERN = cfg.wandb.run_name
 
@@ -55,7 +55,7 @@ def get_wb_data(project_name = "MLE_BENCH", wandb_run_name=WANDB_RUN_NAME , filt
         saved_files = found_run.files()
         try:
             hist = found_run.history(pandas=True)
-            hist.to_csv(f"DOWNLOAD_DIR/history.csv",index=False)
+            hist.to_csv(f"{DOWNLOAD_DIR}{wandb_file.name}/history.csv",index=False)
         except Exception as e:
             print(f"the history is not retrieved")
         download_count = 0
@@ -75,7 +75,7 @@ def get_wb_data(project_name = "MLE_BENCH", wandb_run_name=WANDB_RUN_NAME , filt
                 print(f"Downloading {wandb_file.name} to {local_file_path}...")
 
                 # preserving the W&B file path structure within the root.
-                wandb_file.download(root=DOWNLOAD_DIR) 
+                wandb_file.download(root=DOWNLOAD_DIR,exist_ok =True)
 
                 download_count += 1
                 print("Download complete.")

@@ -298,7 +298,7 @@ def run():
             except Exception as e:
                 print(f"calculating empirical metrics gone wrong with this error : {e}")
             try:
-                advanced_metrics.calculate_advanced_metrics(run_folder_path=Path(cfg.exp_name),journal = journal)
+                advanced_metrics.calculate_advanced_metrics(run_folder_name=f"logs/{cfg.exp_name}",journal = journal)
             except Exception as e:
                 print(f"coulndt calc the advanced metrics : {e}")
 # Assuming 'run()' function exists elsewhere and contains the main program logic

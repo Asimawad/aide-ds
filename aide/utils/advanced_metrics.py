@@ -6,24 +6,25 @@ import sys
 import numpy as np
 from ..journal2report import journal2report
 from . import config
-# from ..journal import Journal
+from pathlib import Path
 try:
     cfg = config.load_cfg()
     task = config.load_task_desc(cfg=cfg)
+    run_name = cfg.exp_name
 except Exception as e:
     pass
 # --- Configuration ---
 BASE_RUN_DATA_DIR = "." 
-RUN_FOLDER_NAME = "spooky-author-identification_o3-mini_none_10_steps_" 
+RUN_FOLDER_NAME = f"logs/{run_name}" 
 JOURNAL_RELATIVE_PATH = f"journal.json" 
 
 BEST_CODE_RELATIVE_PATH = f"best_solution.py" 
 
 BEST_NODE_ID_RELATIVE_PATH = f"best_solution/node_id.txt" 
 
-def find_best_node_id(run_folder_path):
+def find_best_node_id():
     """Tries to find the best node ID from the cached file."""
-    best_node_id_path = run_folder_path / BEST_NODE_ID_RELATIVE_PATH
+    best_node_id_path = cfg.workspace_dir/cfg.exp_name/ BEST_NODE_ID_RELATIVE_PATH
     if best_node_id_path.exists():
         try:
             with open(best_node_id_path, 'r') as f:
@@ -46,19 +47,19 @@ def find_best_node_id(run_folder_path):
         return None
 
 
-def calculate_advanced_metrics(run_folder_path : pathlib.Path=RUN_FOLDER_NAME, journal= None):
+def calculate_advanced_metrics(run_folder_name : str, journal= None):
     """
     Calculates metrics based on the journal and best code files in a local run folder.
 
     Args:
-        run_folder_path (pathlib.Path): The path to the local directory for a specific run.
+        run_folder_name (str): name for a specific run.
 
     Returns:
         dict: A dictionary containing the calculated advanced metrics, or None if files are missing.
     """
-    journal_path = run_folder_path / JOURNAL_RELATIVE_PATH
-    best_code_path = run_folder_path / BEST_CODE_RELATIVE_PATH
-    
+    journal_path = Path(run_folder_name) / JOURNAL_RELATIVE_PATH
+    best_code_path = Path(run_folder_name) /BEST_CODE_RELATIVE_PATH
+    run_folder_path =Path(run_folder_name)
     metrics = {}
 
     # --- Metric: LOC of Best Solution ---
@@ -81,7 +82,7 @@ def calculate_advanced_metrics(run_folder_path : pathlib.Path=RUN_FOLDER_NAME, j
     # --- Metrics from Journal Analysis ---
     if journal_path.exists():
         try:
-            with open(journal_path, 'r') as f:
+            with open(str(journal_path), 'r') as f:
                 journal_data = json.load(f)
 
             # Each node dictionary is assumed to have 'id', 'parent_id' (can be null), 'is_buggy', 'stage_name', 'children' (list of IDs)
@@ -228,7 +229,7 @@ if __name__ == "__main__":
         sys.exit(1) # Exit if incorrect number of arguments
 
     run_folder_name = sys.argv[1]
-    run_folder_path = pathlib.Path(BASE_RUN_DATA_DIR) / run_folder_name
+    run_folder_path = pathlib.Path(BASE_RUN_DATA_DIR) / "logs"/run_folder_name
 
     print(f"Analyzing run data in folder: {run_folder_path}")
 

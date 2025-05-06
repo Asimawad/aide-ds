@@ -22,17 +22,17 @@ logger = logging.getLogger("aide")
 # This is CRITICAL. Adjust these filters to select the specific set of runs
 
 RUN_FILTERS = {
-    # You need to know the exact value of cfg.task.name used in your runs
-    # "config.task.name": "spooky-author-identification",
-
+    # # You need to know the exact value of cfg.task.name used in your runs
+    # "config.goal": cfg.goal,
+    # # "config.goal": cfg.goal,
+    "display_name": cfg.exp_name,
     # You need to know the exact value of cfg.agent.code.model used in your runs
-    "config.agent.code.model": "o3-mini",
+    "config.agent.code.model": cfg.agent.code.model,
 
     # Example: Filter runs for a specific strategy (if you logged it)
-    "config.agent.ITS_Strategy": "none",
+    "config.agent.ITS_Strategy": cfg.agent.ITS_Strategy,
 
 }
-
 
 MAX_STEPS_PER_ATTEMPT = 25 
 
@@ -91,7 +91,7 @@ def calculate_empirical_metrics(entity=WANDB_ENTITY, project=WANDB_PROJECT, filt
             # Retrieve the run's history (logged data per step)
             history = run.history(pandas=True)
 
-            history.to_csv(f"{run.name}/history.csv")
+            history.to_csv(f"logs/{run.name}/history.csv")
             if history.empty:
                 print(f"Warning: Run '{run.name}' ({run.id}) has no logged history steps. Skipping.")
                 continue
@@ -225,7 +225,7 @@ def calculate_empirical_metrics(entity=WANDB_ENTITY, project=WANDB_PROJECT, filt
         }
 
         # Optional: Save results to a JSON file
-        output_filename = f"{run.name}/calculated_metrics_results.json"
+        output_filename = f"logs/{run.name}/calculated_metrics_results.json"
         try:
             with open(output_filename, 'w') as f:
                 json.dump(results, f, indent=4, sort_keys=True)
