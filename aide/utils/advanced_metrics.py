@@ -7,6 +7,7 @@ import numpy as np
 from ..journal2report import journal2report
 from . import config
 from pathlib import Path
+import time
 try:
     cfg = config.load_cfg()
     task = config.load_task_desc(cfg=cfg)
@@ -46,6 +47,44 @@ def find_best_node_id():
         print(f"Warning: Best node ID file not found at {best_node_id_path}. Cannot reliably identify best node's code.", file=sys.stderr)
         return None
 
+def generate_comprehensive_report(run_folder_path: Path, metrics: dict, journal=None) -> str:
+    """Generate a comprehensive report combining all metrics and information."""
+    report_lines = []
+    
+    # Add header
+    report_lines.append("# Run Report")
+    report_lines.append(f"\n## Run Information")
+    report_lines.append(f"- Run Name: {cfg.exp_name}")
+    report_lines.append(f"- Date: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Add Advanced Metrics
+    report_lines.append("\n## Advanced Metrics")
+    if metrics:
+        for key, value in metrics.items():
+            report_lines.append(f"- {key}: {value}")
+    
+    # Add Empirical Metrics if available
+    empirical_metrics_path = run_folder_path / "calculated_metrics_results.json"
+    if empirical_metrics_path.exists():
+        try:
+            with open(empirical_metrics_path, 'r') as f:
+                empirical_metrics = json.load(f)
+                report_lines.append("\n## Empirical Metrics")
+                if "average_metrics" in empirical_metrics:
+                    for key, value in empirical_metrics["average_metrics"].items():
+                        report_lines.append(f"- {key}: {value}")
+        except Exception as e:
+            report_lines.append(f"\nError loading empirical metrics: {e}")
+    
+    # Add Journal Summary if available
+    if journal:
+        try:
+            report_lines.append("\n## Journal Summary")
+            report_lines.append(journal.generate_summary(include_code=False))
+        except Exception as e:
+            report_lines.append(f"\nError generating journal summary: {e}")
+    
+    return "\n".join(report_lines)
 
 def calculate_advanced_metrics(run_folder_name : str, journal= None):
     """
@@ -57,9 +96,9 @@ def calculate_advanced_metrics(run_folder_name : str, journal= None):
     Returns:
         dict: A dictionary containing the calculated advanced metrics, or None if files are missing.
     """
-    journal_path = Path(run_folder_name) / JOURNAL_RELATIVE_PATH
-    best_code_path = Path(run_folder_name) /BEST_CODE_RELATIVE_PATH
-    run_folder_path =Path(run_folder_name)
+    run_folder_path =Path(f"logs/{run_folder_name}")
+    journal_path = Path(f"logs/{run_folder_name}") / JOURNAL_RELATIVE_PATH
+    best_code_path = Path(f"logs/{run_folder_name}") /BEST_CODE_RELATIVE_PATH
     metrics = {}
 
     # --- Metric: LOC of Best Solution ---
@@ -202,6 +241,17 @@ def calculate_advanced_metrics(run_folder_name : str, journal= None):
                     print(f"Error saving advanced metrics to {output_filename}: {e}", file=sys.stderr)
             else:
                 print("Could not calculate advanced metrics.")
+
+            # Generate and save comprehensive report
+            try:
+                report = generate_comprehensive_report(run_folder_path, metrics, journal)
+                report_path = run_folder_path / "report.md"
+                with open(report_path, 'w') as f:
+                    f.write(report)
+                print(f"\nComprehensive report saved to {report_path}")
+            except Exception as e:
+                print(f"Error generating comprehensive report: {e}")
+
         except FileNotFoundError:
             print(f"Journal file not found at {journal_path}.", file=sys.stderr)
             # metrics remain as calculated so far (maybe just LOC)
@@ -212,8 +262,6 @@ def calculate_advanced_metrics(run_folder_name : str, journal= None):
             print(f"An unexpected error occurred while processing journal file {journal_path}: {e}", file=sys.stderr)
             import traceback
             traceback.print_exc()
-            # metrics remain as calculated so far
-
     else:
         print(f"Journal file not found at {journal_path}. Skipping journal metrics.", file=sys.stderr)
         # metrics remain as calculated so far (maybe just LOC)

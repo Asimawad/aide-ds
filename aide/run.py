@@ -298,9 +298,14 @@ def run():
             except Exception as e:
                 print(f"calculating empirical metrics gone wrong with this error : {e}")
             try:
-                advanced_metrics.calculate_advanced_metrics(run_folder_name=f"logs/{cfg.exp_name}",journal = journal)
+                advanced_metrics.calculate_advanced_metrics(cfg.exp_name, journal)
             except Exception as e:
-                print(f"coulndt calc the advanced metrics : {e}")
+                print(f"calculating advanced metrics gone wrong with this error : {e}")
+
+        # Clean up workspace if this was the first step
+        if global_step == 0:
+            shutil.rmtree(cfg.workspace_dir)
+
 # Assuming 'run()' function exists elsewhere and contains the main program logic
 if __name__ == "__main__":
     run()
