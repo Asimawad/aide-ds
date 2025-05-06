@@ -4,37 +4,41 @@ import pandas as pd
 import json
 import sys
 import numpy as np
-from . import config
+import logging
+
+
+exp_name=None
+try:
+    from . import config
+    cfg = config.load_cfg()
+    exp_name=cfg.exp_name
+except Exception as e:
+    print("e")
+
 
 WANDB_ENTITY = "asim_awad" 
 WANDB_PROJECT = "MLE_BENCH" 
-
+logger = logging.getLogger("aide")
 # This is CRITICAL. Adjust these filters to select the specific set of runs
 
 RUN_FILTERS = {
-    # Example: Filter runs for a specific task (competition)
     # You need to know the exact value of cfg.task.name used in your runs
-    "config.task.name": "house-prices-advanced-regression-techniques",
+    # "config.task.name": "spooky-author-identification",
 
-    # Example: Filter runs for a specific model
     # You need to know the exact value of cfg.agent.code.model used in your runs
     "config.agent.code.model": "o3-mini",
 
     # Example: Filter runs for a specific strategy (if you logged it)
-    "config.agent.ITS_Strategy": "self-reflection",
+    "config.agent.ITS_Strategy": "none",
 
-    # Add more filters here as needed to narrow down the set of runs
 }
 
 
 MAX_STEPS_PER_ATTEMPT = 25 
 
 INF_STEPS_REPLACEMENT = MAX_STEPS_PER_ATTEMPT + 10 # penalty
-try:
-    cfg = config.load_cfg()
-except Exception as e:
-    print("e")
-def calculate_empirical_metrics(entity=WANDB_ENTITY, project=WANDB_PROJECT, filters=RUN_FILTERS, max_steps=MAX_STEPS_PER_ATTEMPT, inf_steps_replacement=INF_STEPS_REPLACEMENT,run_name=cfg.exp_name):
+
+def calculate_empirical_metrics(entity=WANDB_ENTITY, project=WANDB_PROJECT, filters=RUN_FILTERS, max_steps=MAX_STEPS_PER_ATTEMPT, inf_steps_replacement=INF_STEPS_REPLACEMENT,run_name=exp_name):
     """
     Calculates empirical and other informative metrics for a set of runs.
 
@@ -55,7 +59,7 @@ def calculate_empirical_metrics(entity=WANDB_ENTITY, project=WANDB_PROJECT, filt
         print(f"Searching for runs in '{project_path}' with filters: {filters}")
 
         # Get runs matching the filters
-        runs = api.runs(project_path, filters="")
+        runs = api.runs(project_path, filters=filters)
 
         if not runs:
             print("No runs found matching the specified filters.")
@@ -77,14 +81,17 @@ def calculate_empirical_metrics(entity=WANDB_ENTITY, project=WANDB_PROJECT, filt
 
         # Track runs that didn't find working code
         runs_without_working_code = 0
-
+        calc_only_one = True #False
+        if calc_only_one:
+            print(type(runs))
+            runs = [runs[-1]]
         for i, run in enumerate(runs):
             print(f"\nProcessing run {i+1}/{len(runs)}: '{run.name}' ({run.id})")
 
             # Retrieve the run's history (logged data per step)
             history = run.history(pandas=True)
-            # print(history)
-            history.to_csv(f"{run_name}/history.csv")
+
+            history.to_csv(f"{run.name}/history.csv")
             if history.empty:
                 print(f"Warning: Run '{run.name}' ({run.id}) has no logged history steps. Skipping.")
                 continue
@@ -218,7 +225,7 @@ def calculate_empirical_metrics(entity=WANDB_ENTITY, project=WANDB_PROJECT, filt
         }
 
         # Optional: Save results to a JSON file
-        output_filename = f"{run_name}/calculated_metrics_results.json"
+        output_filename = f"{run.name}/calculated_metrics_results.json"
         try:
             with open(output_filename, 'w') as f:
                 json.dump(results, f, indent=4, sort_keys=True)
