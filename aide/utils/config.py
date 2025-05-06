@@ -154,7 +154,7 @@ def prep_cfg(cfg: Config):
     top_workspace_dir.mkdir(parents=True, exist_ok=True)
 
     # generate experiment name and prefix with consecutive index
-    experiement_id = str(cfg.data_dir.name)+"_"+ cfg.agent.code.model+"_"+ cfg.agent.ITS_Strategy +"_"+str(cfg.agent.steps)+"_steps_"
+    experiement_id = cfg.agent.code.model+"_"+ str(cfg.data_dir.name)+"_"+cfg.agent.ITS_Strategy +"_"+str(cfg.agent.steps)+"_steps"
     cfg.exp_name = cfg.exp_name or experiement_id # coolname.generate_slug(3)
 
     cfg.log_dir = (top_log_dir / cfg.exp_name).resolve()

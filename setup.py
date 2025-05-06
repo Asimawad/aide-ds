@@ -7,14 +7,14 @@ with open("requirements.txt", "r") as f:
     requirements = f.read().splitlines()
 
 setup(
-    name="aideml",
+    name="aide-ds",
     version="0.1.4",
-    author="Weco AI",
-    author_email="contact@weco.ai",
-    description="Autonomous AI for Data Science and Machine Learning",
+    author="Asim Osmany",
+    author_email="asim@aims.ac.za",
+    description="Open source Autonomous AI for Data Science and Machine Learning",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Wecoai/aideml",
+    url="https://github.com/Asimawad/aide-ds",
     packages=find_packages(),
     package_data={
         "aide": [

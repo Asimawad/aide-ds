@@ -118,7 +118,7 @@ class LocalLLMManager:
     ) -> Optional[str]:
         """Generate response with proper system/user prompt handling."""
         
-        # Check prompt length against model’s max context
+        # Check prompt length against model's max context
         inputs = tokenizer(prompt, return_tensors="pt",return_attention_mask=True)
         input_ids= inputs['input_ids'].to(model.device)
         attention_mask = inputs['attention_mask'].to(model.device)
@@ -239,7 +239,7 @@ def query(
         input_token_count = input_len
         # For consistency, report output tokens of the first response, or sum if needed elsewhere
         output_token_count = output_len_first
-        excute = False
+        
         if excute:   
             exec_timeout = model_kwargs.get("exec_timeout", 20) # Default 20s
             info = process_and_execute_responses(
