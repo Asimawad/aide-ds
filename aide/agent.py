@@ -503,18 +503,15 @@ class Agent:
             f"exec/exec_time_s": exec_duration,
             f"eval/is_buggy": 1 if result_node.is_buggy else 0,
 
+            # This makes the 'exec/exception_type' column exist for *every* step.
+            "exec/exception_type": result_node.exc_type if  result_node.exc_type is not None else 0,
+
             f"code/loc": loc,
             f"code/estimated_quality":int(self._code_quality),
             # f"exec/term_out": wandb.Html(f"<pre>{trim_long_string(result_node.term_out, threshold=2000, k=1000)}</pre>"),
             f"eval/analysis": wandb.Html(f"<pre>{ analysis}</pre>") 
             
         })
-        # if result_node.exc_type:
-        #     excution_info ="\n".join(textwrap.wrap(str(result_node.exc_info), width=120))
-        #     sstt = "\n".join(textwrap.wrap(result_node.exc_type, width=120))
-            # step_log_data[f"exec/exception_type"] = wandb.Html(f"<pre>{sstt }</pre>") , 
-            # step_log_data[f"exec/exception_info"] = wandb.Html(f"<pre>{excution_info }</pre>") if result_node.exc_info else "None"
-
         if not result_node.is_buggy and result_node.metric and result_node.metric.value is not None:
             step_log_data[f"eval/validation_metric"] = result_node.metric.value
 

@@ -29,13 +29,13 @@ setuptools
 packaging
 wheel
 s3fs
-# --- Common ML Libraries for Generated Code ---
+
 scikit-learn
 xgboost
 lightgbm
 # tensorflow  it needs numpy<1.24
 keras
-# Add others as needed: 
+
 matplotlib
 seaborn
 statsmodels

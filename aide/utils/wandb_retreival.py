@@ -1,7 +1,7 @@
 import wandb
 import os
 from .config import load_cfg
-
+import pandas as pd
 # --- Configuration ---
 cfg = load_cfg()
 WANDB_ENTITY = "asim_awad"
@@ -53,7 +53,11 @@ def get_wb_data(project_name = "MLE_BENCH", wandb_run_name=WANDB_RUN_NAME , filt
         print(f"Listing files saved to the run's 'Files' tab...")
         # Get the list of files saved to this run's "Files" tab using the found_run object
         saved_files = found_run.files()
-
+        try:
+            hist = found_run.history(pandas=True)
+            hist.to_csv(f"DOWNLOAD_DIR/history.csv",index=False)
+        except Exception as e:
+            print(f"the history is not retrieved")
         download_count = 0
 
         for wandb_file in saved_files:

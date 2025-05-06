@@ -1,5 +1,5 @@
-from backend import query
-from journal import Journal
+from .backend import query
+from .journal import Journal
 
 
 def journal2report(journal: Journal, task_desc: dict):

@@ -3,7 +3,8 @@ import logging
 import shutil
 import sys
 import os
-from .utils import copytree
+from pathlib import Path
+from .utils import copytree,empirical_eval, advanced_metrics
 os.environ['WANDB_API_KEY'] ="8ca0d241dd66f5a643d64a770d61ad066f937c48"
 try:
     import wandb
@@ -288,8 +289,18 @@ def run():
                          logger.info("W&B Run finished after encountering an error.")
                     except Exception as e_finish_retry:
                          logger.error(f"Error during W&B finish retry: {e_finish_retry}")
-            get_wb_data()
-
+            try:
+                get_wb_data()
+            except Exception as e:
+                print(f"Couldnt get the wandb data:{e}")
+            try:
+                empirical_eval.calculate_empirical_metrics()
+            except Exception as e:
+                print(f"calculating empirical metrics gone wrong with this error : {e}")
+            try:
+                advanced_metrics.calculate_advanced_metrics(run_folder_path=Path(cfg.exp_name),journal = journal)
+            except Exception as e:
+                print(f"coulndt calc the advanced metrics : {e}")
 # Assuming 'run()' function exists elsewhere and contains the main program logic
 if __name__ == "__main__":
     run()
