@@ -62,40 +62,37 @@ def query(
     else:
         provider = determine_provider(model) 
 
-    model_kwargs.update({
-        "model": model,
-    })
-
     # Handle provider-specific parameters
-    if provider == "openai" and model.startswith("o3-"):
-        model_kwargs = {
-        "model": model,
-        }
-        # o3-mini specific parameters
+    if provider == "openai" and (model.startswith("o3-") or model.startswith("o4-")):
+        # Handle reasoning models (o3- and o4-)
         if max_tokens is not None:
             model_kwargs["max_completion_tokens"] = max_tokens
         if reasoning_effort:
             model_kwargs["reasoning_effort"] = reasoning_effort
-    elif provider == "HF" or provider == "vllm" :
+    elif provider == "openai" and model.startswith("gpt-"):
+        # Standard GPT models
+        if max_tokens is not None:
+            model_kwargs["max_tokens"] = max_tokens
+    elif provider == "HF" or provider == "vllm":
         # Standard parameters for other models
         if max_tokens is not None:
             model_kwargs["max_new_tokens"] = max_tokens
 
-
-    # Include any additional model-specific keyword arguments
-    model_kwargs.update(model_kwargs)
-    logger.info(f"---Querying model--- Arguments are {model_kwargs} Model : {model}, provider : {provider}", extra={"verbose": True})
+    # Ensure model is set in the kwargs
+    model_kwargs["model"] = model
+    
+    logger.debug(f"Querying model with arguments: {model_kwargs}, Model: {model}, Provider: {provider}", extra={"verbose": True})
     system_message = compile_prompt_to_md(system_message) if system_message else None
     if system_message:
-        logger.info(f"system: {system_message}", extra={"verbose": True})
+        logger.debug(f"System message: {system_message}", extra={"verbose": True})
     user_message = compile_prompt_to_md(user_message) if user_message else None
     if user_message:
-        logger.info(f"user: {user_message}", extra={"verbose": True})
+        logger.debug(f"User message: {user_message}", extra={"verbose": True})
     if func_spec:
-        logger.info(f"function spec: {func_spec.to_dict()}", extra={"verbose": True})
+        logger.debug(f"Function spec: {func_spec.to_dict()}", extra={"verbose": True})
 
     query_func = provider_to_query_func[provider]
-    logger.info(f"model used is {model} backend used is {provider}")
+    logger.debug(f"Using model {model} with backend {provider}", extra={"verbose": True})
     step_id = f"Draft_{current_step}" # Example
     # output, req_time, in_tok_count, out_tok_count, info 
     raw_responses, latency, input_token_count, output_token_count, info = query_func(
@@ -106,6 +103,6 @@ def query(
         step_identifier=step_id,
         **model_kwargs,
     )
-    logger.info(f"response: {raw_responses}", extra={"verbose": True})
-    logger.info("---Query complete---", extra={"verbose": True})
+    logger.debug(f"Response: {raw_responses}", extra={"verbose": True})
+    logger.debug("Query complete", extra={"verbose": True})
     return raw_responses

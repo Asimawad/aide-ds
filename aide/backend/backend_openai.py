@@ -36,18 +36,89 @@ def _setup_openai_client():
     global _client
     _client = openai.OpenAI(max_retries=0)
 
+def filter_model_kwargs(model: str, kwargs: dict) -> dict:
+    """
+    Filter kwargs based on the model being used to prevent invalid parameters.
+    
+    Args:
+        model: The model ID (e.g., 'gpt-4-turbo', 'o3-mini')
+        kwargs: Original kwargs dict
+        
+    Returns:
+        Filtered kwargs dict with only valid parameters for the specified model
+    """
+    # First, remove None values
+    filtered_kwargs = select_values(notnone, kwargs)
+    
+    # Common parameters valid for all OpenAI models
+    valid_common_params = {
+        "model", "top_p", "n", "stream", 
+        "stop", "max_tokens", "presence_penalty", "frequency_penalty",
+        "logit_bias", "user"
+    }
+    
+    # Specific parameters for reasoning models (o3-, o4-)
+    valid_reasoning_params = valid_common_params.union({
+        "reasoning_effort", "max_completion_tokens"  # Specific to reasoning models
+    })
+    
+    # Specific parameters for GPT-4 Turbo and other GPT models
+    valid_gpt_params = valid_common_params.union({
+        "response_format", "seed", "temperature"  # Specific to newer GPT models
+    })
+    
+    # Choose the right parameter set based on model prefix
+    if model.startswith("o3-") or model.startswith("o4-"):
+        # For Claude 3 models (o3-) and o4 models
+        valid_params = valid_reasoning_params
+        
+        # Explicitly remove temperature parameter for these models as it's not supported
+        if "temperature" in filtered_kwargs:
+            filtered_kwargs.pop("temperature")
+            logger.debug(f"Removed 'temperature' parameter for model {model} as it's not supported", extra={"verbose": True})
+    elif model.startswith("gpt-"):
+        # For GPT models
+        valid_params = valid_gpt_params
+    else:
+        # For other models, default to common params
+        valid_params = valid_common_params
+    
+    # Filter out invalid parameters
+    result = {k: v for k, v in filtered_kwargs.items() if k in valid_params}
+    
+    # Handle parameter naming differences
+    if "max_completion_tokens" in filtered_kwargs and (model.startswith("o3-") or model.startswith("o4-")):
+        result["max_tokens"] = filtered_kwargs["max_completion_tokens"]
+        result.pop("max_completion_tokens", None)
+    
+    # Double-check specific model requirements
+    if (model.startswith("o3-") or model.startswith("o4-")) and "temperature" in result:
+        # Safeguard: ensure temperature is removed for o3/o4 models
+        result.pop("temperature")
+        logger.debug(f"Safeguard: Removed 'temperature' parameter for model {model}", extra={"verbose": True})
+    
+    # Log which parameters were removed
+    removed_params = set(filtered_kwargs.keys()) - set(result.keys())
+    if removed_params:
+        logger.debug(f"Removed invalid parameters for model {model}: {removed_params}", extra={"verbose": True})
+    
+    return result
 
 def query(
     system_message: str | None,
     user_message: str | None,
     func_spec: FunctionSpec | None = None,
-    excute:bool=False,
+    excute: bool = False,
     step_identifier = None,
     convert_system_to_user: bool = False,
     **model_kwargs,
 ) -> tuple[OutputType, float, int, int, dict]:
     _setup_openai_client()
-    filtered_kwargs: dict = select_values(notnone, model_kwargs)  # type: ignore
+    
+    # Filter kwargs based on the model being used
+    model = model_kwargs.get("model", "")
+    filtered_kwargs = filter_model_kwargs(model, model_kwargs)
+    
     messages = opt_messages_to_list(
         system_message, user_message, convert_system_to_user=convert_system_to_user
     )
@@ -55,13 +126,22 @@ def query(
         filtered_kwargs["tools"] = [func_spec.as_openai_tool_dict]
         # force the model the use the function
         filtered_kwargs["tool_choice"] = func_spec.openai_tool_choice_dict
+    
+    logger.debug(f"Calling OpenAI API with model {model} and parameters: {filtered_kwargs}", extra={"verbose": True})
+    
     t0 = time.time()
-    completion = backoff_create(
-        _client.chat.completions.create,
-        OPENAI_TIMEOUT_EXCEPTIONS,
-        messages=messages,
-        **filtered_kwargs,
-    )
+    try:
+        completion = backoff_create(
+            _client.chat.completions.create,
+            OPENAI_TIMEOUT_EXCEPTIONS,
+            messages=messages,
+            **filtered_kwargs,
+        )
+    except Exception as e:
+        logger.error(f"OpenAI API call failed: {str(e)}")
+        error_info = {"error": str(e), "model": model}
+        return f"ERROR: OpenAI API call failed: {str(e)}", time.time() - t0, 0, 0, error_info
+    
     req_time = time.time() - t0
 
     choice = completion.choices[0]
@@ -78,7 +158,7 @@ def query(
         try:
             output = json.loads(choice.message.tool_calls[0].function.arguments)
             console.rule(f"[green]Feedback for {step_identifier}")
-            logger.info(f"response of the feed back is {output}")
+            logger.debug(f"Response of the feedback is {output}", extra={"verbose": True})
             print("\n")
         except json.JSONDecodeError as e:
             logger.error(
