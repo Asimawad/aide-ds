@@ -186,13 +186,13 @@ class Agent:
         }
     def plan_and_code_query(self, prompt,excute, retries=3) -> tuple[str, str]:
         """Generate a natural language plan + code in the same LLM call and split them apart."""
-        system_prompt = {"SYSTEM":"You are a Kaggle Grandmaster. you can plan , implement, debug and improve and machine learning engineering code," ,
-                         "Possible Questions you will face": "1. you will be asked to either come up with a plan and a code to solve the kaggle competetion, or debug a code or improve a working code to get better results",
-                         "How to answer the user":" Whenever you answer, always:"
-                         " 1. Write a “PLAN:” section in plain text—3–5 concise bullet points."
-                         "2. Then write a “CODE:” section containing exactly one fenced Python block:"
-                         "```python"
-                        }
+        system_prompt = {
+            "SYSTEM":"You are a Kaggle Grandmaster. you can plan , implement, debug and improve and machine learning engineering code,",
+            "user_instructions": {
+               "Possible Questions you will face": "1. you will be asked to either come up with a plan and a code to solve the kaggle competetion, or debug a code or improve a working code to get better results",
+               "How to answer the user": "Whenever you answer, always: 1. Write a \"PLAN:\" section in plain text—3–5 concise bullet points. 2. Then write a \"CODE:\" section containing exactly one fenced Python block: ```python"
+            }
+        }
    # Your code here
         completion_text = None
         execution_summary= None
@@ -502,6 +502,10 @@ class Agent:
         step_log_data.update({
             f"exec/exec_time_s": exec_duration,
             f"eval/is_buggy": 1 if result_node.is_buggy else 0,
+            # Explicitly track current step for easy monitoring
+            f"progress/current_step": current_step_number,
+            f"progress/total_steps": self.acfg.steps,
+            f"progress/completion_percentage": (current_step_number / self.acfg.steps) * 100,
 
             # This makes the 'exec/exception_type' column exist for *every* step.
             "exec/exception_type": result_node.exc_type if  result_node.exc_type is not None else 0,

@@ -1,12 +1,10 @@
 import logging
-from rich.console import Console
 from . import (
     backend_local,
     backend_openai,
     backend_vllm,
     backend_deepseek,
 )
-from pathlib import Path
 from .utils import FunctionSpec, OutputType, PromptType, compile_prompt_to_md
 from aide.utils.config import load_cfg
 cfg = load_cfg()
@@ -15,7 +13,7 @@ logger = logging.getLogger("aide")
 
 def determine_provider(model: str) -> str:
     
-    if model.startswith("gpt-") or model.startswith("o1-") or model.startswith("o3-"):
+    if model.startswith("gpt-") or model.startswith("o4-") or model.startswith("o3-"):
         return "openai"
     elif model.startswith("deepseek-"):
         return "deepseek"
@@ -97,7 +95,7 @@ def query(
         logger.info(f"function spec: {func_spec.to_dict()}", extra={"verbose": True})
 
     query_func = provider_to_query_func[provider]
-    
+    logger.info(f"model used is {model} backend used is {provider}")
     step_id = f"Draft_{current_step}" # Example
     # output, req_time, in_tok_count, out_tok_count, info 
     raw_responses, latency, input_token_count, output_token_count, info = query_func(
