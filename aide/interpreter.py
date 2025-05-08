@@ -273,6 +273,44 @@ class Interpreter:
                     # [TODO] handle this in a better way
                     assert reset_session, "Timeout ocurred in interactive session"
 
+                    # Before sending interrupt, check if this might be a resource constraint issue
+                    try:
+                        import psutil
+                        process = psutil.Process(self.process.pid)
+                        
+                        # Check CPU usage - if very low, might indicate resource constraints
+                        # rather than infinite loops or excessive computation
+                        process_cpu = process.cpu_percent(interval=0.5)
+                        system_cpu = psutil.cpu_percent(interval=0.5)
+                        system_memory = psutil.virtual_memory().percent
+                        
+                        # Resource constraint detection heuristics:
+                        # 1. Process using very little CPU (waiting for resources)
+                        # 2. System CPU or memory is very high (saturated)
+                        resource_constrained = (
+                            process_cpu < 5.0 and 
+                            (system_cpu > 90.0 or system_memory > 90.0)
+                        )
+                        
+                        if resource_constrained:
+                            logger.warning(
+                                f"Possible resource constraint detected: "
+                                f"Process CPU: {process_cpu:.1f}%, "
+                                f"System CPU: {system_cpu:.1f}%, "
+                                f"System Memory: {system_memory:.1f}%"
+                            )
+                            
+                            # Give more time if we detect resource constraints (up to 3 extra minutes)
+                            if running_time < self.timeout + 180:
+                                logger.info("Extending timeout due to resource constraints")
+                                time.sleep(5)  # Wait and check again
+                                continue
+                            else:
+                                logger.warning("Resource constraints persisted too long, proceeding with timeout")
+                    except Exception as e:
+                        # If psutil fails or any other error, proceed with normal timeout
+                        logger.debug(f"Error checking resource usage: {e}")
+                    
                     # send interrupt to child
                     os.kill(self.process.pid, signal.SIGINT)  # type: ignore
                     child_in_overtime = True
@@ -289,9 +327,30 @@ class Interpreter:
         # read all stdout/stderr from child up to the EOF marker
         # waiting until the queue is empty is not enough since
         # the feeder thread in child might still be adding to the queue
-        while not self.result_outq.empty() or not output or output[-1] != "<|EOF|>":
-            output.append(self.result_outq.get())
-        output.pop()  # remove the EOF marker
+        
+        # Check if this was a timeout situation where we killed the process
+        if state[1] == "TimeoutError" and not self.process:
+            # For timeouts where we killed the process, just collect what's available without waiting for EOF
+            logger.warning("Timeout occurred and process was killed - collecting available output without waiting for EOF")
+            while not self.result_outq.empty():
+                try:
+                    # Use a small timeout to avoid hanging if something goes wrong
+                    output.append(self.result_outq.get(timeout=0.5))
+                except queue.Empty:
+                    break
+        else:
+            # Normal case - wait for the EOF marker
+            while not self.result_outq.empty() or not output or output[-1] != "<|EOF|>":
+                try:
+                    # Add a timeout here too for safety
+                    output.append(self.result_outq.get(timeout=10))
+                except queue.Empty:
+                    logger.warning("Timed out waiting for EOF marker - proceeding anyway")
+                    break
+            
+            # Only remove EOF marker if we got one
+            if output and output[-1] == "<|EOF|>":
+                output.pop()  # remove the EOF marker
 
         e_cls_name, exc_info, exc_stack = state[1:]
 
