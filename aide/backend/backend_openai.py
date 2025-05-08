@@ -36,74 +36,150 @@ def _setup_openai_client():
     global _client
     _client = openai.OpenAI(max_retries=0)
 
+# def filter_model_kwargs(model: str, kwargs: dict) -> dict:
+#     """
+#     Filter kwargs based on the model being used to prevent invalid parameters.
+    
+#     Args:
+#         model: The model ID (e.g., 'gpt-4-turbo', 'o3-mini')
+#         kwargs: Original kwargs dict
+        
+#     Returns:
+#         Filtered kwargs dict with only valid parameters for the specified model
+#     """
+#     # First, remove None values
+#     filtered_kwargs = select_values(notnone, kwargs)
+    
+#     # Common parameters valid for all OpenAI models
+#     valid_common_params = {
+#         "model", "top_p", "n", "stream", 
+#         "stop", "max_tokens", "presence_penalty", "frequency_penalty",
+#         "logit_bias", "user"
+#     }
+    
+#     # Specific parameters for reasoning models (o3-, o4-)
+#     valid_reasoning_params = valid_common_params.union({
+#         "reasoning_effort", "max_completion_tokens"  # Specific to reasoning models
+#     })
+    
+#     # Specific parameters for GPT-4 Turbo and other GPT models
+#     valid_gpt_params = valid_common_params.union({
+#         "response_format", "seed", "temperature"  # Specific to newer GPT models
+#     })
+    
+#     # Choose the right parameter set based on model prefix
+#     if model.startswith("o3-") or model.startswith("o4-"):
+#         # For Claude 3 models (o3-) and o4 models
+#         valid_params = valid_reasoning_params
+        
+#         # Explicitly remove temperature parameter for these models as it's not supported
+#         if "temperature" in filtered_kwargs:
+#             filtered_kwargs.pop("temperature")
+#             logger.debug(f"Removed 'temperature' parameter for model {model} as it's not supported", extra={"verbose": True})
+#     elif model.startswith("gpt-"):
+#         # For GPT models
+#         valid_params = valid_gpt_params
+#     else:
+#         # For other models, default to common params
+#         valid_params = valid_common_params
+    
+#     # Filter out invalid parameters
+#     result = {k: v for k, v in filtered_kwargs.items() if k in valid_params}
+    
+#     # Handle parameter naming differences
+#     if "max_completion_tokens" in filtered_kwargs and (model.startswith("o3-") or model.startswith("o4-")):
+#         result["max_tokens"] = filtered_kwargs["max_completion_tokens"]
+#         result.pop("max_completion_tokens", None)
+    
+#     # Double-check specific model requirements
+#     if (model.startswith("o3-") or model.startswith("o4-")) and "temperature" in result:
+#         # Safeguard: ensure temperature is removed for o3/o4 models
+#         result.pop("temperature")
+#         logger.debug(f"Safeguard: Removed 'temperature' parameter for model {model}", extra={"verbose": True})
+    
+#     # Log which parameters were removed
+#     removed_params = set(filtered_kwargs.keys()) - set(result.keys())
+#     if removed_params:
+#         logger.debug(f"Removed invalid parameters for model {model}: {removed_params}", extra={"verbose": True})
+    
+#     return result
+
+
 def filter_model_kwargs(model: str, kwargs: dict) -> dict:
     """
-    Filter kwargs based on the model being used to prevent invalid parameters.
-    
-    Args:
-        model: The model ID (e.g., 'gpt-4-turbo', 'o3-mini')
-        kwargs: Original kwargs dict
-        
-    Returns:
-        Filtered kwargs dict with only valid parameters for the specified model
+    Filter and adapt kwargs based on the model being used to prevent invalid parameters.
+    Handles parameter renaming and removal for specific models.
     """
-    # First, remove None values
+    # Remove None values
     filtered_kwargs = select_values(notnone, kwargs)
-    
-    # Common parameters valid for all OpenAI models
-    valid_common_params = {
-        "model", "top_p", "n", "stream", 
-        "stop", "max_tokens", "presence_penalty", "frequency_penalty",
-        "logit_bias", "user"
-    }
-    
-    # Specific parameters for reasoning models (o3-, o4-)
-    valid_reasoning_params = valid_common_params.union({
-        "reasoning_effort", "max_completion_tokens"  # Specific to reasoning models
-    })
-    
-    # Specific parameters for GPT-4 Turbo and other GPT models
-    valid_gpt_params = valid_common_params.union({
-        "response_format", "seed", "temperature"  # Specific to newer GPT models
-    })
-    
-    # Choose the right parameter set based on model prefix
-    if model.startswith("o3-") or model.startswith("o4-"):
-        # For Claude 3 models (o3-) and o4 models
-        valid_params = valid_reasoning_params
-        
-        # Explicitly remove temperature parameter for these models as it's not supported
-        if "temperature" in filtered_kwargs:
-            filtered_kwargs.pop("temperature")
-            logger.debug(f"Removed 'temperature' parameter for model {model} as it's not supported", extra={"verbose": True})
-    elif model.startswith("gpt-"):
-        # For GPT models
-        valid_params = valid_gpt_params
+
+    # Define valid parameters and renames for each model family
+    MODEL_PARAM_SPECS = [
+        {
+            "prefixes": ("o3-", "o4-"),
+            "valid_params": {
+                "model", "top_p", "n", "stream", "stop", "max_completion_tokens",
+                "presence_penalty", "frequency_penalty", "logit_bias", "user", "reasoning_effort"
+            },
+            "renames": {"max_completion_tokens": "max_tokens"},
+            "remove": {"temperature"},  # Not supported
+        },
+        {
+            "prefixes": ("gpt-"),
+            "valid_params": {
+                "model", "top_p", "n", "stream", "stop", "max_tokens", "presence_penalty",
+                "frequency_penalty", "logit_bias", "user", "response_format", "seed", "temperature"
+            },
+            "renames": {},
+            "remove": set(),
+        },
+        {
+            "prefixes": (),
+            "valid_params": {
+                "model", "top_p", "n", "stream", "stop", "max_tokens", "presence_penalty",
+                "frequency_penalty", "logit_bias", "user"
+            },
+            "renames": {},
+            "remove": set(),
+        }
+    ]
+
+    # Find the spec for this model
+    for spec in MODEL_PARAM_SPECS:
+        if any(model.startswith(prefix) for prefix in spec["prefixes"]):
+            valid_params = spec["valid_params"]
+            renames = spec["renames"]
+            remove = spec["remove"]
+            break
     else:
-        # For other models, default to common params
-        valid_params = valid_common_params
-    
-    # Filter out invalid parameters
-    result = {k: v for k, v in filtered_kwargs.items() if k in valid_params}
-    
-    # Handle parameter naming differences
-    if "max_completion_tokens" in filtered_kwargs and (model.startswith("o3-") or model.startswith("o4-")):
-        result["max_tokens"] = filtered_kwargs["max_completion_tokens"]
-        result.pop("max_completion_tokens", None)
-    
-    # Double-check specific model requirements
-    if (model.startswith("o3-") or model.startswith("o4-")) and "temperature" in result:
-        # Safeguard: ensure temperature is removed for o3/o4 models
-        result.pop("temperature")
-        logger.debug(f"Safeguard: Removed 'temperature' parameter for model {model}", extra={"verbose": True})
-    
+        # Default to the last spec if no prefix matches
+        valid_params = MODEL_PARAM_SPECS[-1]["valid_params"]
+        renames = MODEL_PARAM_SPECS[-1]["renames"]
+        remove = MODEL_PARAM_SPECS[-1]["remove"]
+
+    # Remove unsupported parameters
+    for param in remove:
+        if param in filtered_kwargs:
+            filtered_kwargs.pop(param)
+            logger.debug(f"Removed '{param}' parameter for model {model} as it's not supported", extra={"verbose": True})
+
+    # Filter and rename parameters
+    result = {}
+    for k, v in filtered_kwargs.items():
+        if k in valid_params:
+            result[k] = v
+        elif k in renames and renames[k] in valid_params:
+            result[renames[k]] = v
+            logger.debug(f"Renamed '{k}' to '{renames[k]}' for model {model}", extra={"verbose": True})
+        else:
+            logger.debug(f"Ignored invalid parameter '{k}' for model {model}", extra={"verbose": True})
+
     # Log which parameters were removed
     removed_params = set(filtered_kwargs.keys()) - set(result.keys())
     if removed_params:
         logger.debug(f"Removed invalid parameters for model {model}: {removed_params}", extra={"verbose": True})
-    
-    return result
 
+    return result
 def query(
     system_message: str | None,
     user_message: str | None,
