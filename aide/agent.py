@@ -97,7 +97,10 @@ class Agent:
         self.start_time = time.time()
         self.current_step = 0
         self.wandb_run = wandb_run
-
+        try:
+            self.competition_name=str(self.cfg.data_dir).split("/")[-1]
+        except:
+            pass
     def search_policy(self) -> Node | None:
         """Select a node to work on (or None to draft a new node)."""
         search_cfg = self.acfg.search
@@ -236,7 +239,7 @@ class Agent:
 
     def _draft(self, parent_node = None) -> Node:
         console.rule(f"[cyan]Agent Step {self.current_step} - Stage : Drafting")
-        logger.info(f"Agent step {self.current_step}: Generating code (parent type: {parent_node})")
+        logger.info(f"Agent step {self.current_step}: Generating code (parent type: {parent_node})", extra={"verbose": True})
         introduction = (
             "You are a Kaggle grandmaster attending a competition. "
             "In order to win this competition, you need to come up with an excellent and creative plan "
@@ -276,16 +279,17 @@ class Agent:
         formatted_extracted_code = format_code(code)
         
         if formatted_extracted_code:
-            console.print(f"[bold green]Extracted Code for step {self.current_step}:[/bold green]")
-            console.print(Syntax(formatted_extracted_code, "python", theme="default", line_numbers=True))
+            console.print(f"[bold green]Extracted a valid Code for step {self.current_step}[/bold green]")
+            # console.print(Syntax(formatted_extracted_code, "python", theme="default", line_numbers=True))
+            logger.info(f"{Syntax(formatted_extracted_code, 'python', theme='default', line_numbers=True)}",  extra={"verbose": True})
             console.print("-" * 20)
         new_node = Node(plan=plan, code=code , summary=execution_summary)
-        logger.info(f"Drafted new node {new_node.id}")
+        logger.info(f"Drafted new node {new_node.id}",extra={"verbose": True})
         return new_node 
 
     def _improve(self, parent_node: Node) -> Node:
-        console.rule(f"[cyan]Agent Step {self.current_step} - Stage : Improving")
-        logger.info(f"Agent step {self.current_step}: Generating code (parent type: {parent_node.stage_name})")
+        console.rule(f"[cyan]Stage : Improving")
+        logger.info(f"Agent step {self.current_step}: Generating code (parent type: {parent_node.stage_name})",extra={"verbose": True})
         introduction = (
             "You are a Kaggle grandmaster attending a competition. You are provided with a previously developed "
             "solution below and should improve it in order to further increase the (test time) performance. "
@@ -328,8 +332,8 @@ class Agent:
         return new_node
 
     def _debug(self, parent_node: Node) -> Node:
-        console.rule(f"[cyan]Agent Step {self.current_step} - Stage : Debugging")
-        logger.info(f"Agent step {self.current_step}: Generating code (parent type: {parent_node.stage_name})")
+        console.rule(f"[cyan]Stage : Debugging")
+        logger.info(f"Agent step {self.current_step}: Generating code (parent type: {parent_node.stage_name})", extra={"verbose": True})
         introduction = (
             "You are a Kaggle grandmaster attending a competition. "
             "Your previous solution had a bug and/or did not produce a submission.csv, "
@@ -445,7 +449,7 @@ class Agent:
         reflection_applied = False
         if draft_flag and self.acfg.ITS_Strategy=="self-reflection":  # Or based on your reflection strategy
             try:
-                console.rule(f"[cyan]Agent Step {current_step_number} - Stage : Self Reflection")
+                console.rule(f"[cyan]Stage : Self Reflection")
                 reflection_plan, reflection_code = self.reflect(code=result_node.code)
                 if (
                     reflection_code
@@ -482,9 +486,9 @@ class Agent:
 
 
         # Execute the potentially reflected code
-        console.rule(f"[cyan]Agent Step {self.current_step} - Stage : Code Execution and Parsing ")
+        console.rule(f"[cyan]Stage : Code Execution and Parsing ")
 
-        logger.info(f"Agent step {current_step_number}: Executing code for node {result_node.id} (stage: {node_stage}, reflection applied: {reflection_applied})")
+        logger.info(f"Agent step {current_step_number}: Executing code for node {result_node.id} (stage: {node_stage}, reflection applied: {reflection_applied})",extra={"verbose": True})
         exec_start_time = time.time()
         exec_result = exec_callback(result_node.code, True) # reset_session=True usually
         exec_duration = time.time() - exec_start_time
@@ -506,6 +510,7 @@ class Agent:
             f"progress/current_step": current_step_number,
             f"progress/total_steps": self.acfg.steps,
             f"progress/completion_percentage": (current_step_number / self.acfg.steps) * 100,
+            f"progress/competition_name":self.competition_name,
 
             # This makes the 'exec/exception_type' column exist for *every* step.
             "exec/exception_type": result_node.exc_type if  result_node.exc_type is not None else 0,
@@ -659,11 +664,11 @@ class Agent:
                        logger.error(f"Failed to log best code artifact: {e}")
 
         elif best_node:
-             logger.info(f"Node {result_node.id} is not the best node (Best: {best_node.id} with metric {best_node.metric.value:.4f})")
+             logger.info(f"This Node is not the best node (Best: {best_node.id} with metric {best_node.metric.value:.4f})")
         self.current_step += 1
 
     def parse_exec_result(self, node: Node, exec_result: ExecutionResult) -> Node:
-        logger.info(f"Agent is parsing execution results for node {node.id}")
+        logger.debug(f"Agent is parsing execution results for node {node.id}")
 
         node.absorb_exec_result(exec_result)
 
@@ -750,7 +755,7 @@ class Agent:
 
         if node.is_buggy:
             logger.info(
-                f"Parsed results: Node {node.id} is buggy."
+                f"Feedback results: Current Node is buggy."
             )
             # Log reasons for being buggy
             bug_reasons = []
@@ -764,11 +769,9 @@ class Agent:
             node.metric = WorstMetricValue()
 
 
-        #     if self.wandb_run:
-        #          bug_log = {"eval/buggy_reasons": "; ".join(bug_reasons)}
-        #          self.wandb_run.log(bug_log) # Log without step, will associate with last logged step
+     
         else:
-            logger.info(f"Parsed results: Node {node.id} is not buggy")
+            logger.info(f"Feedback results: Current Node is not buggy")
             node.metric = MetricValue(
                 metric_value, maximize=not review_response.get("lower_is_better", True) # Default lower is better
             )

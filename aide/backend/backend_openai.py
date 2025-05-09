@@ -36,75 +36,6 @@ def _setup_openai_client():
     global _client
     _client = openai.OpenAI(max_retries=0)
 
-# def filter_model_kwargs(model: str, kwargs: dict) -> dict:
-#     """
-#     Filter kwargs based on the model being used to prevent invalid parameters.
-    
-#     Args:
-#         model: The model ID (e.g., 'gpt-4-turbo', 'o3-mini')
-#         kwargs: Original kwargs dict
-        
-#     Returns:
-#         Filtered kwargs dict with only valid parameters for the specified model
-#     """
-#     # First, remove None values
-#     filtered_kwargs = select_values(notnone, kwargs)
-    
-#     # Common parameters valid for all OpenAI models
-#     valid_common_params = {
-#         "model", "top_p", "n", "stream", 
-#         "stop", "max_tokens", "presence_penalty", "frequency_penalty",
-#         "logit_bias", "user"
-#     }
-    
-#     # Specific parameters for reasoning models (o3-, o4-)
-#     valid_reasoning_params = valid_common_params.union({
-#         "reasoning_effort", "max_completion_tokens"  # Specific to reasoning models
-#     })
-    
-#     # Specific parameters for GPT-4 Turbo and other GPT models
-#     valid_gpt_params = valid_common_params.union({
-#         "response_format", "seed", "temperature"  # Specific to newer GPT models
-#     })
-    
-#     # Choose the right parameter set based on model prefix
-#     if model.startswith("o3-") or model.startswith("o4-"):
-#         # For Claude 3 models (o3-) and o4 models
-#         valid_params = valid_reasoning_params
-        
-#         # Explicitly remove temperature parameter for these models as it's not supported
-#         if "temperature" in filtered_kwargs:
-#             filtered_kwargs.pop("temperature")
-#             logger.debug(f"Removed 'temperature' parameter for model {model} as it's not supported", extra={"verbose": True})
-#     elif model.startswith("gpt-"):
-#         # For GPT models
-#         valid_params = valid_gpt_params
-#     else:
-#         # For other models, default to common params
-#         valid_params = valid_common_params
-    
-#     # Filter out invalid parameters
-#     result = {k: v for k, v in filtered_kwargs.items() if k in valid_params}
-    
-#     # Handle parameter naming differences
-#     if "max_completion_tokens" in filtered_kwargs and (model.startswith("o3-") or model.startswith("o4-")):
-#         result["max_tokens"] = filtered_kwargs["max_completion_tokens"]
-#         result.pop("max_completion_tokens", None)
-    
-#     # Double-check specific model requirements
-#     if (model.startswith("o3-") or model.startswith("o4-")) and "temperature" in result:
-#         # Safeguard: ensure temperature is removed for o3/o4 models
-#         result.pop("temperature")
-#         logger.debug(f"Safeguard: Removed 'temperature' parameter for model {model}", extra={"verbose": True})
-    
-#     # Log which parameters were removed
-#     removed_params = set(filtered_kwargs.keys()) - set(result.keys())
-#     if removed_params:
-#         logger.debug(f"Removed invalid parameters for model {model}: {removed_params}", extra={"verbose": True})
-    
-#     return result
-
-
 def filter_model_kwargs(model: str, kwargs: dict) -> dict:
     """
     Filter and adapt kwargs based on the model being used to prevent invalid parameters.
@@ -233,7 +164,7 @@ def query(
         ), "Function name mismatch"
         try:
             output = json.loads(choice.message.tool_calls[0].function.arguments)
-            console.rule(f"[green]Feedback for {step_identifier}")
+            console.rule(f"[green]Excution Feedback")
             logger.debug(f"Response of the feedback is {output}", extra={"verbose": True})
             print("\n")
         except json.JSONDecodeError as e:
