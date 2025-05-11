@@ -20,7 +20,8 @@ from pathlib import Path
 import humanize
 from dataclasses_json import DataClassJsonMixin
 
-logger = logging.getLogger("aide")
+logger = logging.getLogger("aide.interpreter")          # LOG+ narrower name
+logger.setLevel(logging.INFO)                           # LOG+ raise to DEBUG for full trace
 
 
 @dataclass
@@ -164,16 +165,20 @@ class Interpreter:
         # - result_outq: receive stdout/stderr from child
         # - event_outq: receive events from child (e.g. state:ready, state:finished)
         # trunk-ignore(mypy/var-annotated)
+
         self.code_inq, self.result_outq, self.event_outq = Queue(), Queue(), Queue()
         self.process = Process(
             target=self._run_session,
             args=(self.code_inq, self.result_outq, self.event_outq),
         )
         self.process.start()
+        logger.info(f"[spawn] New child PID={self.process.pid}")     # LOG+
 
     def cleanup_session(self):
         if self.process is None:
             return
+        logger.info(f"[cleanup] Terminating child PID={self.process.pid}")   # LOG+
+
         # give the child process a chance to terminate gracefully
         self.process.terminate()
         self.process.join(timeout=2)
@@ -185,7 +190,7 @@ class Interpreter:
         # don't wait for gc, clean up immediately
         self.process.close()
         self.process = None  # type: ignore
-
+        logger.info("[cleanup] Child cleaned up")                            
     def run(self, code: str, reset_session=True) -> ExecutionResult:
         """
         Execute the provided Python command in a separate process and return its output.
@@ -213,10 +218,13 @@ class Interpreter:
         assert self.process.is_alive()
 
         self.code_inq.put(code)
+        logger.debug(f"[exec] Sent code to child (len={len(code.splitlines())} lines)")  # LOG+
 
         # wait for child to actually start execution (we don't want interrupt child setup)
         try:
             state = self.event_outq.get(timeout=10)
+            assert state[0] == "state:ready", state
+            logger.debug("[exec] Child signalled READY") 
         except queue.Empty:
             msg = "REPL child process failed to start execution"
             logger.critical(msg)
@@ -244,6 +252,7 @@ class Interpreter:
                 # check if the child is done
                 state = self.event_outq.get(timeout=1)  # wait for state:finished
                 assert state[0] == "state:finished", state
+                logger.debug(f"[exec] Child FINISHED (exc={state[1]})") # LOG+
                 exec_time = time.time() - start_time
                 break
             except queue.Empty:
@@ -314,6 +323,7 @@ class Interpreter:
                     self.cleanup_session()
                     self.create_process()
                     child_in_overtime = False        # reset flag
+                    logger.info("[timeout] Session recycled; returning TimeoutError")      # LOG+
 
                     return ExecutionResult(
                         term_out=[
@@ -365,4 +375,5 @@ class Interpreter:
             output.append(
                 f"Execution time: {humanize.naturaldelta(exec_time)} seconds (time limit is {humanize.naturaldelta(self.timeout)})."
             )
+        logger.info(f"[return] exec_time={exec_time:.2f}s  exc={e_cls_name}")   # LOG+
         return ExecutionResult(output, exec_time, e_cls_name, exc_info, exc_stack)
