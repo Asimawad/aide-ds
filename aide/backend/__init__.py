@@ -81,18 +81,18 @@ def query(
     # Ensure model is set in the kwargs
     model_kwargs["model"] = model
     
-    logger.debug(f"Querying model with arguments: {model_kwargs}, Model: {model}, Provider: {provider}", extra={"verbose": True})
+    logger.info(f"Querying model with arguments: {model_kwargs}, Model: {model}, Provider: {provider}", extra={"verbose": True})
     system_message = compile_prompt_to_md(system_message) if system_message else None
     if system_message:
-        logger.debug(f"System message: {system_message}", extra={"verbose": True})
+        logger.info(f"System message: {system_message}", extra={"verbose": True})
     user_message = compile_prompt_to_md(user_message) if user_message else None
     if user_message:
-        logger.debug(f"User message: {user_message}", extra={"verbose": True})
+        logger.info(f"User message: {user_message}", extra={"verbose": True})
     if func_spec:
-        logger.debug(f"Function spec: {func_spec.to_dict()}", extra={"verbose": True})
+        logger.info(f"Function spec: {func_spec.to_dict()}", extra={"verbose": True})
 
     query_func = provider_to_query_func[provider]
-    logger.debug(f"Using model {model} with backend {provider}", extra={"verbose": True})
+    logger.info(f"Using model {model} with backend {provider}", extra={"verbose": True})
     step_id = f"Draft_{current_step}" # Example
     # output, req_time, in_tok_count, out_tok_count, info 
     raw_responses, latency, input_token_count, output_token_count, info = query_func(
@@ -103,6 +103,9 @@ def query(
         step_identifier=step_id,
         **model_kwargs,
     )
-    logger.debug(f"Response: {raw_responses}", extra={"verbose": True})
-    logger.debug("Query complete", extra={"verbose": True})
+    if func_spec:
+        logger.info(f"Response: {raw_responses}")
+    else:
+        logger.info(f"Response: {raw_responses}", extra={"verbose": True})
+    logger.info("Query complete", extra={"verbose": True})
     return raw_responses

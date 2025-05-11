@@ -1,1 +1,0 @@
-def determine_provider(model: str): return "openai" if model.startswith("gpt-") or model.startswith("o4-") or model.startswith("o3-") else "deepseek" if model.startswith("deepseek-") else "HF"; print("o3-mini:", determine_provider("o3-mini")); print("o4-mini:", determine_provider("o4-mini")); print("gpt-4-turbo:", determine_provider("gpt-4-turbo"))

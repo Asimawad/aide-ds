@@ -96,6 +96,7 @@ class Agent:
         self.data_preview: str | None = None
         self.start_time = time.time()
         self.current_step = 0
+        self._prev_buggy: bool = False
         self.wandb_run = wandb_run
         try:
             self.competition_name=str(self.cfg.data_dir).split("/")[-1]
@@ -490,16 +491,22 @@ class Agent:
 
         logger.info(f"Agent step {current_step_number}: Executing code for node {result_node.id} (stage: {node_stage}, reflection applied: {reflection_applied})",extra={"verbose": True})
         exec_start_time = time.time()
-        exec_result = exec_callback(result_node.code, True) # reset_session=True usually
+        # Decide when to reset the interpreter session
+        reset_needed = (self.current_step == 0) or self._prev_buggy
+
+        exec_result = exec_callback(
+            result_node.code,
+            reset_session=reset_needed
+        )
         exec_duration = time.time() - exec_start_time
         logger.info(f"Code execution finished in {exec_duration:.2f}s")
 
         # Parse execution result
         logger.info(f"Agent step {current_step_number}: Parsing execution results for node {result_node.id}")
         result_node = self.parse_exec_result(
-            node=result_node, exec_result=exec_result
-            ,)
-
+            node=result_node, exec_result=exec_result,
+            )
+        self._prev_buggy = result_node.is_buggy
         loc = len(result_node.code.splitlines())
         analysis ="\n".join(textwrap.wrap(result_node.analysis, width=120))
         # Log execution and evaluation results
@@ -537,17 +544,6 @@ class Agent:
             logger.info(
                 f"Actually, node {result_node.id} did not produce a submission.csv"
             )
-            # Update the logged data if W&B run exists
-            # if self.wandb_run:
-
-                # step_log_data[f"eval/validation_metric"] = float('nan')
-                # step_log_data[f'{node_stage}/final_code'] = wandb.Html(f"<pre>{result_node.code }</pre>") 
-            # if hasattr(result_node, 'buggy_reasons') and result_node.buggy_reasons:
-            #     buggy_reason = "; ".join(result_node.buggy_reasons)
-            #     step_log_data['eval/buggy_reasons'] =  wandb.Html(f"<pre>{ buggy_reason}</pre>")  
-            # elif result_node.is_buggy and result_node.analysis != "Feedback LLM failed.":
-            #     # If it's buggy but no specific reasons were extracted, log the general analysis
-            #     step_log_data['eval/buggy_summary'] = wandb.Html(f"<pre>{result_node.analysis}</pre>") 
 # 
         step_log_data[f"eval/submission_produced"] = 1 if submission_exists else 0
 
