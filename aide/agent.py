@@ -492,11 +492,11 @@ class Agent:
         logger.info(f"Agent step {current_step_number}: Executing code for node {result_node.id} (stage: {node_stage}, reflection applied: {reflection_applied})",extra={"verbose": True})
         exec_start_time = time.time()
         # Decide when to reset the interpreter session
-        reset_needed = (self.current_step == 0) or self._prev_buggy
+        # reset_needed = (self.current_step == 0) or self._prev_buggy
 
         exec_result = exec_callback(
             result_node.code,
-            reset_session=reset_needed
+            reset_session=True
         )
         exec_duration = time.time() - exec_start_time
         logger.info(f"Code execution finished in {exec_duration:.2f}s")

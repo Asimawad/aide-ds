@@ -270,58 +270,61 @@ class Interpreter:
                 running_time = time.time() - start_time
                 if running_time > self.timeout:
 
-                    # [TODO] handle this in a better way
-                    assert reset_session, "Timeout ocurred in interactive session"
+                    logger.warning(
+                        f"Child exceeded the {self.timeout}s timeout — "
+                        "recycling interpreter session."
+                    )
 
-                    # Before sending interrupt, check if this might be a resource constraint issue
+                    # ----- optional resource-pressure heuristics (keep) -----
                     try:
                         import psutil
-                        process = psutil.Process(self.process.pid)
-                        
-                        # Check CPU usage - if very low, might indicate resource constraints
-                        # rather than infinite loops or excessive computation
-                        process_cpu = process.cpu_percent(interval=0.5)
-                        system_cpu = psutil.cpu_percent(interval=0.5)
-                        system_memory = psutil.virtual_memory().percent
-                        
-                        # Resource constraint detection heuristics:
-                        # 1. Process using very little CPU (waiting for resources)
-                        # 2. System CPU or memory is very high (saturated)
-                        resource_constrained = (
-                            process_cpu < 5.0 and 
-                            (system_cpu > 90.0 or system_memory > 90.0)
-                        )
-                        
-                        if resource_constrained:
-                            logger.warning(
-                                f"Possible resource constraint detected: "
-                                f"Process CPU: {process_cpu:.1f}%, "
-                                f"System CPU: {system_cpu:.1f}%, "
-                                f"System Memory: {system_memory:.1f}%"
-                            )
-                            
-                            # Give more time if we detect resource constraints (up to 3 extra minutes)
-                            if running_time < self.timeout + 180:
-                                logger.info("Extending timeout due to resource constraints")
-                                time.sleep(5)  # Wait and check again
-                                continue
-                            else:
-                                logger.warning("Resource constraints persisted too long, proceeding with timeout")
-                    except Exception as e:
-                        # If psutil fails or any other error, proceed with normal timeout
-                        logger.debug(f"Error checking resource usage: {e}")
-                    
-                    # send interrupt to child
-                    os.kill(self.process.pid, signal.SIGINT)  # type: ignore
-                    child_in_overtime = True
-                    # terminate if we're overtime by more than a minute
-                    if running_time > self.timeout + 60:
-                        logger.warning("Child failed to terminate, killing it..")
-                        self.cleanup_session()
+                        proc        = psutil.Process(self.process.pid)
+                        process_cpu = proc.cpu_percent(interval=0.5)
+                        system_cpu  = psutil.cpu_percent(interval=0.5)
+                        system_mem  = psutil.virtual_memory().percent
 
-                        state = (None, "TimeoutError", {}, [])
-                        exec_time = self.timeout
-                        break
+                        low_proc_cpu   = process_cpu < 5.0
+                        sys_overloaded = (system_cpu > 90.0 or system_mem > 90.0)
+
+                        if low_proc_cpu and sys_overloaded and running_time < self.timeout + 180:
+                            logger.info(
+                                "Likely resource contention; extending timeout by 3 min."
+                            )
+                            time.sleep(5)              # back-off, then re-check loop
+                            continue                   # skip the recycle for now
+                    except Exception as e:
+                        logger.debug(f"psutil check failed: {e}")
+                    # --------------------------------------------------------
+
+                    # graceful SIGINT
+                    try:
+                        os.kill(self.process.pid, signal.SIGINT)
+                    except ProcessLookupError:
+                        pass
+
+                    self.process.join(timeout=2)
+
+                    # hard kill if still alive
+                    if self.process.is_alive():
+                        logger.warning("Child ignored SIGINT, killing …")
+                        self.process.kill()
+                        self.process.join()
+
+                    # clean up & recreate
+                    self.cleanup_session()
+                    self.create_process()
+                    child_in_overtime = False        # reset flag
+
+                    return ExecutionResult(
+                        term_out=[
+                            f"TimeoutError: Execution exceeded {self.timeout}s; "
+                            "session recycled."
+                        ],
+                        exec_time=self.timeout,
+                        exc_type="TimeoutError",
+                        exc_info={},
+                        exc_stack=[],
+                    )
 
         output: list[str] = []
         # read all stdout/stderr from child up to the EOF marker
