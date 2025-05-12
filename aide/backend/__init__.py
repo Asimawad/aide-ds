@@ -9,7 +9,7 @@ from .utils import FunctionSpec, OutputType, PromptType, compile_prompt_to_md
 from aide.utils.config import load_cfg
 cfg = load_cfg()
 logger = logging.getLogger("aide")
-
+logger.setLevel(logging.WARNING)
 
 def determine_provider(model: str) -> str:
     

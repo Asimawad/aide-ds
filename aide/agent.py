@@ -11,6 +11,7 @@ from .interpreter import ExecutionResult
 from .journal import Journal, Node
 from .utils import data_preview
 from .utils.config import Config
+from .utils.pretty_logging import log_step, logger        
 from .utils.metric import MetricValue, WorstMetricValue
 from .utils.response import extract_code, extract_text_up_to_code, wrap_code,trim_long_string, format_code
 from .utils.self_reflection import perform_two_step_reflection  
@@ -22,7 +23,7 @@ except ImportError:
     wandb = None
 
 logger = logging.getLogger("aide")
-
+# logger.setLevel(logging.WARNING)
 console = Console()
 def format_time(time_in_sec: int):
     return f"{time_in_sec // 3600}hrs {(time_in_sec % 3600) // 60}mins {time_in_sec % 60}secs"
@@ -95,7 +96,7 @@ class Agent:
         self.journal = journal
         self.data_preview: str | None = None
         self.start_time = time.time()
-        self.current_step = 25
+        self.current_step = 1
         self._prev_buggy: bool = False
         self.wandb_run = wandb_run
         try:
@@ -662,6 +663,21 @@ class Agent:
         elif best_node:
              logger.info(f"This Node is not the best node (Best: {best_node.id} with metric {best_node.metric.value:.4f})")
         self.current_step += 1
+            # …existing code that fills exec_duration / result_node.metric / etc.
+        # store for run.py
+        result_node.stage      = node_stage
+        result_node.exec_time  = exec_duration
+
+        log_step(
+            step   = current_step_number,
+            total  = self.acfg.steps,
+            stage  = node_stage,
+            is_buggy = result_node.is_buggy,
+            exec_time = exec_duration,
+            metric = (result_node.metric.value
+                    if result_node.metric and result_node.metric.value else None),
+        )
+
 
     def parse_exec_result(self, node: Node, exec_result: ExecutionResult) -> Node:
         logger.debug(f"Agent is parsing execution results for node {node.id}")

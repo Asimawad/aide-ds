@@ -12,7 +12,7 @@ WANDB_RUN_NAME = cfg.wandb.run_name
 
 DOWNLOAD_DIR = "./logs"
 
-FILE_FILTER_PATTERN = cfg.wandb.run_name
+FILE_FILTER_PATTERN = cfg.wandb.run_name #solve me
 
 def get_wb_data(project_name = "MLE_BENCH", wandb_run_name=WANDB_RUN_NAME , filter_pattern =FILE_FILTER_PATTERN, download_dir = "./" ):
         
