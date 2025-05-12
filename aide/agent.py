@@ -95,7 +95,7 @@ class Agent:
         self.journal = journal
         self.data_preview: str | None = None
         self.start_time = time.time()
-        self.current_step = 0
+        self.current_step = 25
         self._prev_buggy: bool = False
         self.wandb_run = wandb_run
         try:
