@@ -165,7 +165,7 @@ def query(
         try:
             output = json.loads(choice.message.tool_calls[0].function.arguments)
             console.rule(f"[green]Excution Feedback")
-            logger.debug(f"Response of the feedback is {output}", extra={"verbose": True})
+            logger.info(f"Response of the feedback is {output}")
             print("\n")
         except json.JSONDecodeError as e:
             logger.error(

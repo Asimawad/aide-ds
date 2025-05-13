@@ -281,7 +281,8 @@ class Agent:
         formatted_extracted_code = format_code(code)
         
         if formatted_extracted_code:
-            console.print(f"[bold green]Extracted a valid Code for step {self.current_step}[/bold green]")
+            # console.print(f"[bold green]Extracted a valid Code for step {self.current_step}[/bold green]")
+            console.print(f"[bold green]Extracted a valid Code ✓ [/bold green]")
             # console.print(Syntax(formatted_extracted_code, "python", theme="default", line_numbers=True))
             logger.info(f"{Syntax(formatted_extracted_code, 'python', theme='default', line_numbers=True)}",  extra={"verbose": True})
             console.print("-" * 20)
