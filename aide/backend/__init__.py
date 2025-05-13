@@ -8,8 +8,8 @@ from . import (
 from .utils import FunctionSpec, OutputType, PromptType, compile_prompt_to_md
 from aide.utils.config import load_cfg
 cfg = load_cfg()
-logger = logging.getLogger("aide")
-logger.setLevel(logging.WARNING)
+logger = logging.getLogger("aide.backend")
+logger.setLevel(logging.DEBUG)
 
 def determine_provider(model: str) -> str:
     
@@ -81,20 +81,19 @@ def query(
     # Ensure model is set in the kwargs
     model_kwargs["model"] = model
     
-    logger.info(f"Querying model with arguments: {model_kwargs}, Model: {model}, Provider: {provider}", extra={"verbose": True})
+    logger.debug(f"Querying model with arguments: {model_kwargs}, Model: {model}, Provider: {provider}", extra={"verbose": True})
     system_message = compile_prompt_to_md(system_message) if system_message else None
     if system_message:
-        logger.info(f"System message: {system_message}", extra={"verbose": True})
+        logger.debug(f"System message: {system_message}", extra={"verbose": True})
     user_message = compile_prompt_to_md(user_message) if user_message else None
     if user_message:
-        logger.info(f"User message: {user_message}", extra={"verbose": True})
+        logger.debug(f"User message: {user_message}", extra={"verbose": True})
     if func_spec:
-        logger.info(f"Function spec: {func_spec.to_dict()}", extra={"verbose": True})
+        logger.debug(f"Function spec: {func_spec.to_dict()}", extra={"verbose": True})
 
     query_func = provider_to_query_func[provider]
-    logger.info(f"Using model {model} with backend {provider}", extra={"verbose": True})
+    logger.debug(f"Using model {model} with backend {provider}", extra={"verbose": True})
     step_id = f"Draft_{current_step}" # Example
-    # output, req_time, in_tok_count, out_tok_count, info 
     raw_responses, latency, input_token_count, output_token_count, info = query_func(
         system_message=system_message,
         user_message=user_message,
@@ -104,8 +103,8 @@ def query(
         **model_kwargs,
     )
     if func_spec:
-        logger.info(f"Response: {raw_responses}")
+        logger.debug(f"Response: {raw_responses}")
     else:
-        logger.info(f"Response: {raw_responses}", extra={"verbose": True})
-    logger.info("Query complete", extra={"verbose": True})
+        logger.debug(f"Response: {raw_responses}", extra={"verbose": True})
+    logger.debug("Query complete", extra={"verbose": True})
     return raw_responses

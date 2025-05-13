@@ -46,11 +46,10 @@ For example, to run AIDE on the example [house price prediction task](https://ww
 aide data_dir="example_tasks/house_prices" goal="Predict the sales price for each house" eval="Use the RMSE metric between the logarithm of the predicted and observed values." agent.code.model=deepseek-r1:latest wandb.project="my-aide-experiments"
 ```
 
-
 ### And here’s your model-friendly prompt-style instruction:
 
 ```bash
-aide data_dir="data/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." agent.code.model=o3-mini agent.ITS_Strategy="none" agent.steps=10
+aide data_dir="data/spooky-author-identification" goal="Predict the author of a sentence as one of Poe, Lovecraft, or Shelley" eval="Use multi-class logarithmic loss between predicted author probabilities and the true label." agent.code.model=o4-mini-2025-04-16 agent.ITS_Strategy="none" agent.steps=10
 
 ### To use vllm for inference
 .aide-ds/bin/python -m vllm.entrypoints.openai.api_server \

@@ -28,7 +28,7 @@ def _setup_vllm_client(): # <<< KEEP: Correctly initializes the OpenAI client on
     """Sets up the OpenAI client for vLLM server."""
     global _client
     if _client is None:
-        logger.info(f"Setting up vLLM client with base_url: {_vllm_config['base_url']}", extra={"verbose": True})
+        logger.debug(f"Setting up vLLM client with base_url: {_vllm_config['base_url']}", extra={"verbose": True})
         try:
             _client = openai.OpenAI(
                 base_url=_vllm_config["base_url"],
@@ -48,7 +48,7 @@ def set_vllm_config(cfg: OmegaConf):
             "base_url": cfg.vllm.get("base_url", _vllm_config["base_url"]),
             "api_key": cfg.vllm.get("api_key", _vllm_config["api_key"]),
         })
-    logger.info(f"Updated vLLM config: base_url={_vllm_config['base_url']}", extra={"verbose": True})
+    logger.debug(f"Updated vLLM config: base_url={_vllm_config['base_url']}", extra={"verbose": True})
  
 def query(
     system_message: Optional[str] = None,
@@ -130,5 +130,5 @@ def query(
         "id": completion.id,
         "created": completion.created,
     }
-    logger.info(f"No of tokens {output_tokens}")
+    logger.debug(f"No of tokens {output_tokens}")
     return output, req_time, input_tokens, output_tokens, info

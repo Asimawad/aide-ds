@@ -22,8 +22,8 @@ try:
 except ImportError:
     wandb = None
 
-logger = logging.getLogger("aide")
-# logger.setLevel(logging.WARNING)
+# logger = logging.getLogger("aide.agent")  # A separate logger for agent.py
+# logger.setLevel(logging.DEBUG)
 console = Console()
 def format_time(time_in_sec: int):
     return f"{time_in_sec // 3600}hrs {(time_in_sec % 3600) // 60}mins {time_in_sec % 60}secs"
@@ -96,7 +96,6 @@ class Agent:
         self.journal = journal
         self.data_preview: str | None = None
         self.start_time = time.time()
-        self.current_step = 1
         self._prev_buggy: bool = False
         self.wandb_run = wandb_run
         try:
@@ -109,7 +108,7 @@ class Agent:
 
         # initial drafting
         if len(self.journal.draft_nodes) < search_cfg.num_drafts:
-            logger.info("[search policy] drafting new node (not enough drafts)")
+            logger.debug("[search policy] drafting new node (not enough drafts)")
             return None
 
         # debugging
@@ -122,18 +121,18 @@ class Agent:
             ]
             if debuggable_nodes:
                 node_to_debug = random.choice(debuggable_nodes)
-                logger.info(f"[search policy] debugging node {node_to_debug.id}")
+                logger.debug(f"[search policy] debugging node {node_to_debug.id}")
                 return node_to_debug
 
         # back to drafting if no nodes to improve
         good_nodes = self.journal.good_nodes
         if not good_nodes:
-            logger.info("[search policy] drafting new node (no good nodes)")
+            logger.debug("[search policy] drafting new node (no good nodes)")
             return None
 
         # greedy
         greedy_node = self.journal.get_best_node()
-        logger.info(f"[search policy] greedy node selected: node {greedy_node.id}")
+        logger.debug(f"[search policy] greedy node selected: node {greedy_node.id}")
         return greedy_node
 
     @property
@@ -235,13 +234,13 @@ class Agent:
                 # merge all code blocks into a single string
                 return nl_text, code , "execution_summary"
 
-            logger.info("Plan + code extraction failed, retrying...")
-        logger.info("Final plan + code extraction attempt failed, giving up...")
+            logger.debug("Plan + code extraction failed, retrying...")
+        logger.debug("Final plan + code extraction attempt failed, giving up...")
         return "", completion_text, "None"  # type: ignore
 
     def _draft(self, parent_node = None) -> Node:
-        console.rule(f"[cyan]Agent Step {self.current_step} - Stage : Drafting")
-        logger.info(f"Agent step {self.current_step}: Generating code (parent type: {parent_node})", extra={"verbose": True})
+        # console.rule(f"[cyan]Agent Step {self.current_step} - Stage : Drafting")
+        logger.debug(f"Agent step {self.current_step}: Generating code (parent type: {parent_node})", extra={"verbose": True})
         introduction = (
             "You are a Kaggle grandmaster attending a competition. "
             "In order to win this competition, you need to come up with an excellent and creative plan "
@@ -281,18 +280,17 @@ class Agent:
         formatted_extracted_code = format_code(code)
         
         if formatted_extracted_code:
-            # console.print(f"[bold green]Extracted a valid Code for step {self.current_step}[/bold green]")
-            console.print(f"[bold green]Extracted a valid Code ✓ [/bold green]")
-            # console.print(Syntax(formatted_extracted_code, "python", theme="default", line_numbers=True))
-            logger.info(f"{Syntax(formatted_extracted_code, 'python', theme='default', line_numbers=True)}",  extra={"verbose": True})
-            console.print("-" * 20)
+            # console.print(f"[bold green]Extracted a valid Code ✓ [/bold green]")
+            logger.debug(f"[bold green]Extracted a valid Code ✓ [/bold green]")
+            logger.debug(f"{Syntax(formatted_extracted_code, 'python', theme='default', line_numbers=True)}",  extra={"verbose": True})
+            # console.print("-" * 20)
         new_node = Node(plan=plan, code=code , summary=execution_summary)
-        logger.info(f"Drafted new node {new_node.id}",extra={"verbose": True})
+        logger.debug(f"Drafted new node {new_node.id}",extra={"verbose": True})
         return new_node 
 
     def _improve(self, parent_node: Node) -> Node:
-        console.rule(f"[cyan]Stage : Improving")
-        logger.info(f"Agent step {self.current_step}: Generating code (parent type: {parent_node.stage_name})",extra={"verbose": True})
+        # console.rule(f"[cyan]Stage : Improving")
+        logger.debug(f"Agent step {self.current_step}: Generating code (parent type: {parent_node.stage_name})",extra={"verbose": True})
         introduction = (
             "You are a Kaggle grandmaster attending a competition. You are provided with a previously developed "
             "solution below and should improve it in order to further increase the (test time) performance. "
@@ -331,12 +329,12 @@ class Agent:
 
         plan, code , _ = self.plan_and_code_query(prompt,excute=False)
         new_node = Node(plan=plan, code=code, parent=parent_node)
-        logger.info(f"Improved node {parent_node.id} to create new node {new_node.id}")
+        logger.debug(f"Improved node {parent_node.id} to create new node {new_node.id}")
         return new_node
 
     def _debug(self, parent_node: Node) -> Node:
         console.rule(f"[cyan]Stage : Debugging")
-        logger.info(f"Agent step {self.current_step}: Generating code (parent type: {parent_node.stage_name})", extra={"verbose": True})
+        logger.debug(f"Agent step {self.current_step}: Generating code (parent type: {parent_node.stage_name})", extra={"verbose": True})
         introduction = (
             "You are a Kaggle grandmaster attending a competition. "
             "Your previous solution had a bug and/or did not produce a submission.csv, "
@@ -373,7 +371,7 @@ class Agent:
 
         plan, code, _ = self.plan_and_code_query(prompt,excute=False)
         new_node = Node(plan=plan, code=code, parent=parent_node)
-        logger.info(f"Debugged node {parent_node.id} to create new node {new_node.id}")
+        logger.debug(f"Debugged node {parent_node.id} to create new node {new_node.id}")
         return new_node
 
     def reflect(self, code: str) -> tuple[str, str]:
@@ -383,7 +381,7 @@ class Agent:
         Returns:
             Tuple: (reflection_plan, revised_code)
         """
-        logger.info("Initiating two-step self-reflection...")
+        logger.debug("Initiating two-step self-reflection...")
         reflection_plan, revised_code = perform_two_step_reflection(
             code=code,
             task_desc=self.task_desc,
@@ -396,9 +394,9 @@ class Agent:
         )
 
         if revised_code != code and revised_code:  # Check if code actually changed
-            logger.info("Self-reflection resulted in code changes.")
+            logger.debug("Self-reflection resulted in code changes.")
         elif reflection_plan == "No specific errors found requiring changes.":
-            logger.info("Self-reflection found no errors requiring changes.")
+            logger.debug("Self-reflection found no errors requiring changes.")
         else:
             logger.warning(
                 "Self-reflection finished, but revised code is same as original or empty."
@@ -416,7 +414,7 @@ class Agent:
         submission_dir = self.cfg.workspace_dir / "submission" # Define once
         shutil.rmtree(submission_dir, ignore_errors=True)
         submission_dir.mkdir(exist_ok=True)
-
+        self.current_step = current_step_number
         if not self.journal.nodes or self.data_preview is None:
             self.update_data_preview()
 
@@ -440,19 +438,12 @@ class Agent:
         step_log_data = {
             f"{node_stage}/plan": wandb.Html(f"<pre>{plan}</pre>"),}
      
-        # if self.wandb_run and self.cfg.wandb.log_code:
-             # Limit code length for logging
-            #  code_to_log = result_node.code[:10000] + ("\n..." if len(result_node.code) > 10000 else "")
-            #  step_log_data[f"{node_stage}/initial_code"] = wandb.Html(f"<pre>{code_to_log}</pre>")
-
-
-
 
         # Apply reflection if applicable
         reflection_applied = False
         if draft_flag and self.acfg.ITS_Strategy=="self-reflection":  # Or based on your reflection strategy
             try:
-                console.rule(f"[cyan]Stage : Self Reflection")
+                # console.rule(f"[cyan]Stage : Self Reflection")
                 reflection_plan, reflection_code = self.reflect(code=result_node.code)
                 if (
                     reflection_code
@@ -460,7 +451,7 @@ class Agent:
                     and reflection_code != result_node.code
                 ):
                     result_node.code = reflection_code
-                    logger.info(
+                    logger.debug(
                         f"Node {result_node.id} self-reflected and updated code"
                     )
                     reflection_applied = True
@@ -471,7 +462,7 @@ class Agent:
                         #  step_log_data[f"{node_stage}/reflected_code"] = wandb.Html(f"<pre>{reflected_code_to_log}</pre>") 
 
                 elif reflection_plan != "No specific errors found requiring changes.":
-                    logger.info(
+                    logger.debug(
                         f"Node {result_node.id} self-reflection completed, but no changes applied."
                     )
                     # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>")  # Log even if no code change
@@ -485,15 +476,12 @@ class Agent:
                     f"Error during self-reflection for node {result_node.id}: {e}",
                     exc_info=True,
                 )
-                # step_log_data[f"{node_stage}/reflection_error"] = str(e)
 
 
-        # Execute the potentially reflected code
-        console.rule(f"[cyan]Stage : Code Execution and Parsing ")
+        # console.rule(f"[cyan]Stage : Code Execution and Parsing ")
 
-        logger.info(f"Agent step {current_step_number}: Executing code for node {result_node.id} (stage: {node_stage}, reflection applied: {reflection_applied})",extra={"verbose": True})
+        logger.debug(f"Agent step {current_step_number}: Executing code for node {result_node.id} (stage: {node_stage}, reflection applied: {reflection_applied})",extra={"verbose": True})
         exec_start_time = time.time()
-        # Decide when to reset the interpreter session
         # reset_needed = (self.current_step == 0) or self._prev_buggy
 
         exec_result = exec_callback(
@@ -501,10 +489,10 @@ class Agent:
             reset_session=True
         )
         exec_duration = time.time() - exec_start_time
-        logger.info(f"Code execution finished in {exec_duration:.2f}s")
+        logger.debug(f"Code execution finished in {exec_duration:.2f}s")
 
         # Parse execution result
-        logger.info(f"Agent step {current_step_number}: Parsing execution results for node {result_node.id}")
+        logger.debug(f"Agent step {current_step_number}: Parsing execution results for node {result_node.id}")
         result_node = self.parse_exec_result(
             node=result_node, exec_result=exec_result,
             )
@@ -543,7 +531,7 @@ class Agent:
         if not result_node.is_buggy and not submission_exists:
             result_node.is_buggy = True
             result_node.metric = WorstMetricValue()
-            logger.info(
+            logger.debug(
                 f"Actually, node {result_node.id} did not produce a submission.csv"
             )
 # 
@@ -618,7 +606,7 @@ class Agent:
         # Log best solution artifacts *immediately* when a new best is found
         best_node = self.journal.get_best_node()
         if best_node is not None and best_node.id == result_node.id:
-             logger.info(f"Node {result_node.id} is the best node so far (Metric: {best_node.metric.value:.4f})")
+             logger.debug(f"Node {result_node.id} is the best node so far (Metric: {best_node.metric.value:.4f})")
              best_solution_dir = self.cfg.workspace_dir / "best_solution"
              best_submission_dir = self.cfg.workspace_dir / "best_submission"
              best_solution_dir.mkdir(exist_ok=True, parents=True)
@@ -626,20 +614,6 @@ class Agent:
 
              if submission_exists:
                  shutil.copy(submission_path, best_submission_dir)
-
-                 if self.wandb_run and self.cfg.wandb.log_artifacts:
-                     try:
-                         artifact_sub = wandb.Artifact(f'best_submission', type='submission')
-                         artifact_sub.add_file(str(best_submission_dir / "submission.csv"))
-                         self.wandb_run.log_artifact(artifact_sub, aliases=["best", f"step_{current_step_number}"])
-                         logger.info(f"Logged best submission artifact for step {current_step_number}")
-                         # Also update summary metric in W&B
-                         wandb.summary["best_validation_metric"] = best_node.metric.value
-                         wandb.summary["best_node_id"] = best_node.id
-                         wandb.summary["best_node_step"] = best_node.step
-                     except Exception as e:
-                          logger.error(f"Failed to log best submission artifact: {e}")
-
              else:
                   logger.warning(f"Best node {result_node.id} did not produce submission.csv, cannot cache/log artifact.")
 
@@ -652,20 +626,10 @@ class Agent:
                  f.write(str(result_node.id))
 
 
-             if self.wandb_run and self.cfg.wandb.log_artifacts:
-                  try:
-                       artifact_code = wandb.Artifact(f'best_solution_code', type='code')
-                       artifact_code.add_file(str(best_code_path))
-                       self.wandb_run.log_artifact(artifact_code, aliases=["best", f"step_{current_step_number}"])
-                       logger.info(f"Logged best solution code artifact for step {current_step_number}")
-                  except Exception as e:
-                       logger.error(f"Failed to log best code artifact: {e}")
-
         elif best_node:
-             logger.info(f"This Node is not the best node (Best: {best_node.id} with metric {best_node.metric.value:.4f})")
-        self.current_step += 1
+             logger.debug(f"This Node is not the best node (Best: {best_node.id} with metric {best_node.metric.value:.4f})")
             # …existing code that fills exec_duration / result_node.metric / etc.
-        # store for run.py
+
         result_node.stage      = node_stage
         result_node.exec_time  = exec_duration
 
@@ -758,6 +722,7 @@ class Agent:
 
         node.analysis = review_response.get("summary", "Feedback LLM failed.") # Default value
         # Determine buggy status based on multiple factors
+        logger.debug(f"summary: {node.analysis}")
         node.is_buggy = (
             review_response.get("is_bug", True) # Default to True if key missing
             or node.exc_type is not None
@@ -767,7 +732,7 @@ class Agent:
         )
 
         if node.is_buggy:
-            logger.info(
+            logger.debug(
                 f"Feedback results: Current Node is buggy."
             )
             # Log reasons for being buggy
@@ -777,14 +742,14 @@ class Agent:
             if metric_value is None: bug_reasons.append("Metric missing/invalid")
             if not has_csv_submission_reported: bug_reasons.append("LLM reported no submission")
             if not has_csv_submission_actual: bug_reasons.append("Submission file not found")
-            logger.info(f"Buggy reasons: {'; '.join(bug_reasons)}")
+            logger.debug(f"Buggy reasons: {'; '.join(bug_reasons)}")
 
             node.metric = WorstMetricValue()
 
 
      
         else:
-            logger.info(f"Feedback results: Current Node is not buggy")
+            logger.debug(f"Feedback results: Current Node is not buggy")
             node.metric = MetricValue(
                 metric_value, maximize=not review_response.get("lower_is_better", True) # Default lower is better
             )

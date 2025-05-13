@@ -49,11 +49,11 @@ def filter_model_kwargs(model: str, kwargs: dict) -> dict:
         {
             "prefixes": ("o3-", "o4-"),
             "valid_params": {
-                "model", "top_p", "n", "stream", "stop", "max_completion_tokens",
+                "model",  "n", "stream", "stop", "max_completion_tokens",
                 "presence_penalty", "frequency_penalty", "logit_bias", "user", "reasoning_effort"
             },
             "renames": {"max_completion_tokens": "max_tokens"},
-            "remove": {"temperature"},  # Not supported
+            "remove": {"temperature","top_p"},  # Not supported
         },
         {
             "prefixes": ("gpt-"),
@@ -164,9 +164,9 @@ def query(
         ), "Function name mismatch"
         try:
             output = json.loads(choice.message.tool_calls[0].function.arguments)
-            console.rule(f"[green]Excution Feedback")
-            logger.info(f"Response of the feedback is {output}")
-            print("\n")
+            # console.rule(f"[green]Excution Feedback")
+            logger.debug(f"Response of the feedback is {output}")
+            logger.debug("\n")
         except json.JSONDecodeError as e:
             logger.error(
                 f"Error decoding the function arguments: {choice.message.tool_calls[0].function.arguments}"

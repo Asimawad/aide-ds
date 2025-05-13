@@ -21,7 +21,7 @@ import humanize
 from dataclasses_json import DataClassJsonMixin
 
 logger = logging.getLogger("aide.interpreter")          # LOG+ narrower name
-logger.setLevel(logging.INFO)                           # LOG+ raise to DEBUG for full trace
+logger.setLevel(logging.DEBUG)                           # LOG+ raise to DEBUG for full trace
 
 
 @dataclass
@@ -172,12 +172,12 @@ class Interpreter:
             args=(self.code_inq, self.result_outq, self.event_outq),
         )
         self.process.start()
-        logger.info(f"[spawn] New child PID={self.process.pid}")     # LOG+
+        logger.debug(f"[spawn] New child PID={self.process.pid}")     # LOG+
 
     def cleanup_session(self):
         if self.process is None:
             return
-        logger.info(f"[cleanup] Terminating child PID={self.process.pid}")   # LOG+
+        logger.debug(f"[cleanup] Terminating child PID={self.process.pid}")   # LOG+
 
         # give the child process a chance to terminate gracefully
         self.process.terminate()
@@ -190,7 +190,7 @@ class Interpreter:
         # don't wait for gc, clean up immediately
         self.process.close()
         self.process = None  # type: ignore
-        logger.info("[cleanup] Child cleaned up")                            
+        logger.debug("[cleanup] Child cleaned up")                            
     def run(self, code: str, reset_session=True) -> ExecutionResult:
         """
         Execute the provided Python command in a separate process and return its output.
@@ -204,7 +204,7 @@ class Interpreter:
 
         """
 
-        logger.info(f"REPL is executing code (reset_session={reset_session})")
+        logger.debug(f"REPL is executing code (reset_session={reset_session})")
 
         if reset_session:
             if self.process is not None:
@@ -375,5 +375,5 @@ class Interpreter:
             output.append(
                 f"Execution time: {humanize.naturaldelta(exec_time)} seconds (time limit is {humanize.naturaldelta(self.timeout)})."
             )
-        logger.info(f"[return] exec_time={exec_time:.2f}s  exc={e_cls_name}")   # LOG+
+        # logger.info(f"[return] exec_time={exec_time:.2f}s  exc={e_cls_name}")   # LOG+
         return ExecutionResult(output, exec_time, e_cls_name, exc_info, exc_stack)

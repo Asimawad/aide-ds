@@ -48,8 +48,10 @@ class Experiment:
         )
 
     def run(self, steps: int) -> Solution:
+        # logger.war("i am working")
+
         for _i in range(steps):
-            self.agent.step(exec_callback=self.interpreter.run)
+            self.agent.step(exec_callback=self.interpreter.run,current_step_number=_i+1)
             save_run(self.cfg, self.journal)
         self.interpreter.cleanup_session()
 

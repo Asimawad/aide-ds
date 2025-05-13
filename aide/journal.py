@@ -190,7 +190,7 @@ class Journal(DataClassJsonMixin):
             summary_part += f"Results: {n.analysis}\n"
             summary_part += f"Validation Metric: {n.metric.value}\n"
             summary.append(summary_part)
-        return "\n-------------------------------\n".join(summary)
+        return " ".join(summary)
 
 
 def get_path_to_node(journal: Journal, node_id: str) -> list[str]:

@@ -15,10 +15,10 @@ file_handler = logging.FileHandler(LOG_PATH, mode="w", encoding="utf-8")
 file_handler.setLevel(logging.INFO)
 
 rich_handler = RichHandler(
-    console=Console(theme=Theme({
-        "logging.level.info":  "cyan",
-        "logging.level.error": "bold red",
-    })),
+    # console=Console(theme=Theme({
+    #     "logging.level.info":  "cyan",
+    #     "logging.level.error": "bold red",
+    # })),
     rich_tracebacks=True,
     markup=True,
     show_level=True,
@@ -57,7 +57,7 @@ def log_step(*,
     status       = "[red]✗[/]" if is_buggy else "[green]✓[/]"
     exec_str     = f"exec {exec_time:>.2f}s" if exec_time is not None else ""
     metric_str   = f"metric {metric:>.4f}"   if metric     is not None else ""
-    logger.info(
+    logger.debug(
         f"[dim]{mm:02d}:{ss:02d}[/]  "
         f"step {step}/{total:<2}  "
         f"{stage:<15} "

@@ -4,6 +4,41 @@ from .config import load_cfg
 import pandas as pd
 # --- Configuration ---
 cfg = load_cfg()
+
+import os
+import shutil
+import wandb
+
+def copy_best_solution_and_submission():
+    # Define the source and target directories
+    workspaces_dir = os.path.join("workspaces", cfg.exp_name)
+    logs_dir = os.path.join("logs", cfg.exp_name) 
+
+    # Define the specific folders to copy
+    best_solution_dir = os.path.join(workspaces_dir, "best_solution")
+    best_submission_dir = os.path.join(workspaces_dir, "best_submission")
+
+    # Check if the directories exist and copy them to the logs directory
+    if os.path.exists(best_solution_dir):
+        shutil.copytree(best_solution_dir, logs_dir)
+        print(f"Copied best_solution directory to {logs_dir}")
+    else:
+        print(f"best_solution directory not found in {workspaces_dir}")
+
+    if os.path.exists(best_submission_dir):
+        shutil.copytree(best_submission_dir, logs_dir)
+        print(f"Copied best_submission directory to {logs_dir}")
+    else:
+        print(f"best_submission directory not found in {workspaces_dir}")
+
+def save_logs_to_wandb():
+    # Ensure the logs directory is populated with the relevant folders (best_solution and best_submission)
+    copy_best_solution_and_submission()
+
+    # Save the entire logs directory to WandB
+    print("Saving logs directory to WandB")
+    wandb.save(f"logs/{cfg.exp_name}/*", base_path="./")  # Save log files
+
 WANDB_ENTITY = "asim_awad"
 
 WANDB_PROJECT = "MLE_BENCH" 
