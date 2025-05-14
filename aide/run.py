@@ -232,7 +232,7 @@ def run():
            
             # on the last step, print the tree
             if global_step == cfg.agent.steps - 1:
-                logger.debug(journal_to_string_tree(journal))
+                logger.info(journal_to_string_tree(journal))
                 save_run(cfg, journal)
 
     finally:  # Add finally block - This block runs no matter what.
@@ -261,6 +261,17 @@ def run():
                     wandb.summary["best_validation_metric"] = best_node.metric.value
                     wandb.summary["best_node_id"] = best_node.id
                     wandb.summary["best_node_step"] = best_node.step
+                # try:
+                #     empirical_eval.calculate_empirical_metrics()
+                # except Exception as e:
+                #     print(f"Calculating empirical metrics gone wrong with this error : {e}")
+                # try:
+                #     advanced_metrics.calculate_advanced_metrics(cfg.exp_name, journal)
+                # except Exception as e:
+                #     print(f"Calculating advanced metrics gone wrong with this error : {e}")
+                # history = wandb_run.history(pandas=True)
+
+                # history.to_csv(f"logs/{run.name}/history.csv")
                 save_logs_to_wandb()
                 wandb_run.finish()
             
