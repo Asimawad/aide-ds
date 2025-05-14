@@ -427,7 +427,7 @@ class Agent:
             node_stage = "draft"
             result_node = self._draft(parent_node)
         elif parent_node.is_buggy:
-            draft_flag=True
+            # draft_flag=True
             node_stage = "debug"
             result_node = self._debug(parent_node)
             
