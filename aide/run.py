@@ -269,10 +269,10 @@ def run():
                 #     advanced_metrics.calculate_advanced_metrics(cfg.exp_name, journal)
                 # except Exception as e:
                 #     print(f"Calculating advanced metrics gone wrong with this error : {e}")
-                try:
-                    save_logs_to_wandb()
-                except Exception as e:
-                    print(f"Couldn't save the wandb data: {e}")
+                # history = wandb_run.history(pandas=True)
+
+                # history.to_csv(f"logs/{run.name}/history.csv")
+                save_logs_to_wandb()
                 wandb_run.finish()
             
                 logger.info("W&B Run finished.")

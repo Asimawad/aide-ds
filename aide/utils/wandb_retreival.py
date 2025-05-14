@@ -4,29 +4,30 @@ from .config import load_cfg
 import pandas as pd
 # --- Configuration ---
 cfg = load_cfg()
-
+from . import copytree
 import os
 import shutil
 import wandb
+from pathlib import Path
 
 def copy_best_solution_and_submission():
     # Define the source and target directories
     workspaces_dir = os.path.join("workspaces", cfg.exp_name)
-    logs_dir = os.path.join("logs", cfg.exp_name) 
+    logs_dir = Path(os.path.join("logs", cfg.exp_name) )
 
     # Define the specific folders to copy
-    best_solution_dir = os.path.join(workspaces_dir, "best_solution")
-    best_submission_dir = os.path.join(workspaces_dir, "best_submission")
+    best_solution_dir = Path(os.path.join(workspaces_dir, "best_solution"))
+    best_submission_dir = Path(os.path.join(workspaces_dir, "best_submission"))
 
     # Check if the directories exist and copy them to the logs directory
     if os.path.exists(best_solution_dir):
-        shutil.copytree(best_solution_dir, logs_dir)
+        copytree(best_solution_dir, logs_dir ,use_symlinks=False)
         print(f"Copied best_solution directory to {logs_dir}")
     else:
         print(f"best_solution directory not found in {workspaces_dir}")
 
     if os.path.exists(best_submission_dir):
-        shutil.copytree(best_submission_dir, logs_dir)
+        copytree(best_submission_dir, logs_dir,use_symlinks=False)
         print(f"Copied best_submission directory to {logs_dir}")
     else:
         print(f"best_submission directory not found in {workspaces_dir}")

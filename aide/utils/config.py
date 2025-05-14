@@ -167,6 +167,7 @@ def prep_cfg(cfg: Config):
     # <<< ADD WANDB RUN NAME GENERATION (optional but good practice) >>>
     if cfg.wandb.enabled and cfg.wandb.run_name is None:
          cfg.wandb.run_name = cfg.exp_name # Use the coolname generated name
+    
     # validate the config
 
     cfg_schema: Config = OmegaConf.structured(Config)
