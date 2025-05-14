@@ -419,7 +419,6 @@ class Agent:
             self.update_data_preview()
 
         parent_node = self.search_policy()
-        parent_type = "None" if parent_node is None else parent_node.stage_name
 
         draft_flag = False
         if parent_node is None:
@@ -440,58 +439,46 @@ class Agent:
         step_log_data = {
             f"{node_stage}/plan": wandb.Html(f"<pre>{plan}</pre>"),}
      
-
-        # Apply reflection if applicable
-        reflection_applied = False
-        if draft_flag and self.acfg.ITS_Strategy=="self-reflection":  # Or based on your reflection strategy
-            try:
-                # console.rule(f"[cyan]Stage : Self Reflection")
-                reflection_plan, reflection_code = self.reflect(code=result_node.code)
-                if (
-                    reflection_code
-                    and reflection_code.strip()
-                    and reflection_code != result_node.code
-                ):
-                    result_node.code = reflection_code
-                    logger.debug(
-                        f"Node {result_node.id} self-reflected and updated code"
-                    )
-                    reflection_applied = True
-                    # Log reflection results
-                    # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>") 
-                    if self.wandb_run and self.cfg.wandb.log_code:
-                         reflected_code_to_log = reflection_code[:10000] + ("\n..." if len(reflection_code) > 10000 else "")
-                        #  step_log_data[f"{node_stage}/reflected_code"] = wandb.Html(f"<pre>{reflected_code_to_log}</pre>") 
-
-                elif reflection_plan != "No specific errors found requiring changes.":
-                    logger.debug(
-                        f"Node {result_node.id} self-reflection completed, but no changes applied."
-                    )
-                    # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>")  # Log even if no code change
-                else:
-                    message = "No errors found by reflection."
-                    # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{message}</pre>")  
-
-
-            except Exception as e:
-                logger.error(
-                    f"Error during self-reflection for node {result_node.id}: {e}",
-                    exc_info=True,
-                )
-
-
-        # console.rule(f"[cyan]Stage : Code Execution and Parsing ")
-
-        logger.debug(f"Agent step {current_step_number}: Executing code for node {result_node.id} (stage: {node_stage}, reflection applied: {reflection_applied})",extra={"verbose": True})
         exec_start_time = time.time()
-        # reset_needed = (self.current_step == 0) or self._prev_buggy
+        logger.debug(f"Agent step {current_step_number}: Executing code for node {result_node.id} (stage: {node_stage}, reflection applied: {reflection_applied})",extra={"verbose": True})
 
         exec_result = exec_callback(
             result_node.code,
             reset_session=True
         )
+        # Flag if execution threw any exception
         exec_duration = time.time() - exec_start_time
         logger.debug(f"Code execution finished in {exec_duration:.2f}s")
+        if exec_result.exc_type is not None:
+            logger.warning(f"Node {result_node.id} execution error: {exec_result.exc_type}")
+            reflection_applied = False
+            if draft_flag and self.acfg.ITS_Strategy=="self-reflection":  # reflection strategy
+                try:
+                    # console.rule(f"[cyan]Stage : Self Reflection")
+                    _, reflection_code = self.reflect(code=result_node.code)
+                    if (
+                        reflection_code
+                        and reflection_code.strip()
+                        and reflection_code != result_node.code
+                    ):
+                        logger.debug(
+                            f"Node {result_node.id} self-reflected and updated code"
+                        )
+                        exec_result = exec_callback(
+                            reflection_code,
+                            reset_session=True
+                        )
+                        if exec_result.exc_type is not None:
+                            logger.warning(f"Node {result_node.id} execution error: {exec_result.exc_type}")
+                            reflection_applied = False
+                        else:
+                            result_node.code = reflection_code
+
+                except Exception as e:
+                    logger.error(
+                        f"Error during self-reflection for node {result_node.id}: {e}",
+                        exc_info=True,
+                    )
 
         # Parse execution result
         logger.debug(f"Agent step {current_step_number}: Parsing execution results for node {result_node.id}")
