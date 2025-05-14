@@ -440,7 +440,9 @@ class Agent:
             f"{node_stage}/plan": wandb.Html(f"<pre>{plan}</pre>"),}
      
         exec_start_time = time.time()
-        logger.debug(f"Agent step {current_step_number}: Executing code for node {result_node.id} (stage: {node_stage}, reflection applied: {reflection_applied})",extra={"verbose": True})
+        reflection_applied = False
+
+        logger.debug(f"Agent step {current_step_number}: Executing code for node {result_node.id} (stage: {node_stage}",extra={"verbose": True})
 
         exec_result = exec_callback(
             result_node.code,
@@ -451,7 +453,6 @@ class Agent:
         logger.debug(f"Code execution finished in {exec_duration:.2f}s")
         if exec_result.exc_type is not None:
             logger.warning(f"Node {result_node.id} execution error: {exec_result.exc_type}")
-            reflection_applied = False
             if draft_flag and self.acfg.ITS_Strategy=="self-reflection":  # reflection strategy
                 try:
                     # console.rule(f"[cyan]Stage : Self Reflection")
