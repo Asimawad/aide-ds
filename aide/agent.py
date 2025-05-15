@@ -382,7 +382,7 @@ class Agent:
             Tuple: (reflection_plan, revised_code)
         """
         logger.debug("Initiating two-step self-reflection...")
-        reflection_plan, revised_code = perform_two_step_reflection(
+        reflection_plan, revised_code = perform_two_step_reflection_with_fewshot(
             code=code,
             task_desc=self.task_desc,
             model_name=self.acfg.code.model,
