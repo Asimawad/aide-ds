@@ -43,7 +43,7 @@ from .utils.wandb_retreival import get_wb_data, save_logs_to_wandb
 # Use the global logger
 logger = logging.getLogger("aide")
 logger.setLevel(logging.DEBUG)
-
+logger.propagate = False
 
 class VerboseFilter(logging.Filter):
     """
@@ -229,7 +229,8 @@ def run():
                 save_run(cfg, journal)  # Save progress locally
                 global_step += 1
                 pbar.update(1)
-           
+            # print(f"global_step: {global_step}")
+            # print(f"cfg.agent.steps: {cfg.agent.steps}")
             # on the last step, print the tree
             if global_step == cfg.agent.steps - 1:
                 logger.debug(journal_to_string_tree(journal))
