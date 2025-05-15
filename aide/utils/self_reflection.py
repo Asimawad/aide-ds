@@ -281,7 +281,7 @@ def perform_two_step_reflection_with_fewshot(
         # --- ACTUAL CODE TO REVIEW ---
         "Code to Review": wrap_code_func(code),  # Use the passed function
         # --- CONTEXT ---
-        # "Context": task_desc,  # Use the passed task_desc
+        "Context": task_desc,  # Use the passed task_desc
     }
 
     # Log the prompt being sent (optional, but helpful for debugging)

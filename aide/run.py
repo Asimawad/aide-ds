@@ -7,10 +7,15 @@ from pathlib import Path
 from .utils import copytree, empirical_eval, advanced_metrics
 from rich.logging import RichHandler
 from tqdm import tqdm  # Import tqdm for progress bar
-import wandb
 
 os.environ['WANDB_API_KEY'] = "8ca0d241dd66f5a643d64a770d61ad066f937c48"
 
+try:
+    import wandb
+    from wandb.sdk.wandb_settings import Settings
+
+except ImportError:
+    wandb = None
 
 from . import backend
 from .agent import Agent
@@ -150,7 +155,7 @@ def run():
 
     logger.addHandler(file_handler)
     logger.addHandler(verbose_file_handler)
-    # logger.addHandler(console_handler)
+    logger.addHandler(console_handler)
 
     logger.info(f'Starting run "{cfg.exp_name}"')
 
@@ -227,7 +232,7 @@ def run():
            
             # on the last step, print the tree
             if global_step == cfg.agent.steps - 1:
-                logger.info(journal_to_string_tree(journal))
+                logger.debug(journal_to_string_tree(journal))
                 save_run(cfg, journal)
 
     finally:  # Add finally block - This block runs no matter what.
@@ -256,7 +261,6 @@ def run():
                     wandb.summary["best_validation_metric"] = best_node.metric.value
                     wandb.summary["best_node_id"] = best_node.id
                     wandb.summary["best_node_step"] = best_node.step
-                
                 save_logs_to_wandb()
                 wandb_run.finish()
             

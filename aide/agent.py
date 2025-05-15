@@ -14,7 +14,7 @@ from .utils.config import Config
 from .utils.pretty_logging import log_step, logger        
 from .utils.metric import MetricValue, WorstMetricValue
 from .utils.response import extract_code, extract_text_up_to_code, wrap_code,trim_long_string, format_code
-from .utils.self_reflection_2 import perform_two_step_reflection  , perform_two_step_reflection_with_fewshot
+from .utils.self_reflection import perform_two_step_reflection  , perform_two_step_reflection_with_fewshot
 from pathlib import Path 
 import os
 try:
@@ -382,7 +382,7 @@ class Agent:
             Tuple: (reflection_plan, revised_code)
         """
         logger.debug("Initiating two-step self-reflection...")
-        reflection_plan, revised_code = perform_two_step_reflection_with_fewshot(
+        reflection_plan, revised_code = perform_two_step_reflection(
             code=code,
             task_desc=self.task_desc,
             model_name=self.acfg.code.model,
@@ -448,8 +448,10 @@ class Agent:
             self.update_data_preview()
 
         parent_node = self.search_policy()
+        parent_type = "None" if parent_node is None else parent_node.stage_name
 
         draft_flag = False
+        critique_flag=False
         if parent_node is None:
             draft_flag = True
             node_stage = "draft"
@@ -485,7 +487,7 @@ class Agent:
                         f"Node {result_node.id} self-reflected and updated code"
                     )
                     reflection_applied = True
-
+                    # Log reflection results
                     # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>") 
                     if self.wandb_run and self.cfg.wandb.log_code:
                          reflected_code_to_log = reflection_code[:10000] + ("\n..." if len(reflection_code) > 10000 else "")
@@ -506,41 +508,41 @@ class Agent:
                     f"Error during self-reflection for node {result_node.id}: {e}",
                     exc_info=True,
                 )
-        if critique_flag and self.acfg.ITS_Strategy=="self-reflection":  # Or based on your reflection strategy
-            try:
-                    # console.rule(f"[cyan]Stage : Self Reflection")
-                    reflection_plan, reflection_code = self.double_reflect(code=result_node.code)
-                    if (
-                        reflection_code
-                        and reflection_code.strip()
-                        and reflection_code != result_node.code
-                    ):
-                        result_node.code = reflection_code
-                        logger.debug(
-                            f"Node {result_node.id} self-reflected and updated code"
-                        )
-                        reflection_applied = True
+        # if critique_flag and self.acfg.ITS_Strategy=="self-reflecon":  # Or based on your reflection strategy
+        #     try:
+        #             # console.rule(f"[cyan]Stage : Self Reflection")
+        #             reflection_plan, reflection_code = self.double_reflect(code=result_node.code)
+        #             if (
+        #                 reflection_code
+        #                 and reflection_code.strip()
+        #                 and reflection_code != result_node.code
+        #             ):
+        #                 result_node.code = reflection_code
+        #                 logger.debug(
+        #                     f"Node {result_node.id} self-reflected and updated code"
+        #                 )
+        #                 reflection_applied = True
 
-                        # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>") 
-                        if self.wandb_run and self.cfg.wandb.log_code:
-                            reflected_code_to_log = reflection_code[:10000] + ("\n..." if len(reflection_code) > 10000 else "")
-                            #  step_log_data[f"{node_stage}/reflected_code"] = wandb.Html(f"<pre>{reflected_code_to_log}</pre>") 
+        #                 # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>") 
+        #                 if self.wandb_run and self.cfg.wandb.log_code:
+        #                     reflected_code_to_log = reflection_code[:10000] + ("\n..." if len(reflection_code) > 10000 else "")
+        #                     #  step_log_data[f"{node_stage}/reflected_code"] = wandb.Html(f"<pre>{reflected_code_to_log}</pre>") 
 
-                    elif reflection_plan != "No specific errors found requiring changes.":
-                        logger.debug(
-                            f"Node {result_node.id} self-reflection completed, but no changes applied."
-                        )
-                        # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>")  # Log even if no code change
-                    else:
-                        message = "No errors found by reflection."
-                        # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{message}</pre>")  
+        #             elif reflection_plan != "No specific errors found requiring changes.":
+        #                 logger.debug(
+        #                     f"Node {result_node.id} self-reflection completed, but no changes applied."
+        #                 )
+        #                 # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>")  # Log even if no code change
+        #             else:
+        #                 message = "No errors found by reflection."
+        #                 # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{message}</pre>")  
 
 
-            except Exception as e:
-                logger.error(
-                    f"Error during self-reflection for node {result_node.id}: {e}",
-                    exc_info=True,
-                )
+        #     except Exception as e:
+        #         logger.error(
+        #             f"Error during self-reflection for node {result_node.id}: {e}",
+        #             exc_info=True,
+        #         )
         # reflection_applied = False
         # if exec_result.exc_type is not None:
         #     logger.warning(f"Node {result_node.id} execution error: {exec_result.exc_type}")
