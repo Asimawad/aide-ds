@@ -90,8 +90,8 @@ def query(
     # Log ignored kwargs (useful for debugging)
     ignored_kwargs = set(model_kwargs.keys()) - set(api_params.keys())
     if ignored_kwargs:
-         logger.warning(f"Ignored invalid or unmapped model_kwargs for vLLM API backend: {ignored_kwargs}", extra={"verbose": True})
-
+        #  logger.warning(f"Ignored invalid or unmapped model_kwargs for vLLM API backend: {ignored_kwargs}", extra={"verbose": True})
+        pass
     # Perform API call
     t0 = time.time() 
     try:
