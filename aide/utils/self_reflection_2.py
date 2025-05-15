@@ -19,41 +19,19 @@ def perform_two_step_reflection(
     wrap_code_func: WrapCodeFuncType,
     extract_code_func: ExtractCodeFuncType,
 ) -> tuple[str, str]:
-    """
-    Performs a two-step self-reflection on the provided code.
 
-    1. Critiques the code and proposes minimal text-based edits.
-    2. Applies only those edits to the original code.
-
-    Args:
-        code: The code string to reflect upon.
-        task_desc: The description of the task for context.
-        model_name: Name of the language model to use.
-        temperature: Temperature setting for the language model.
-        convert_system_to_user: Flag for handling system messages.
-        query_func: The function used to query the language model.
-        wrap_code_func: Function to wrap code for prompts.
-        extract_code_func: Function to extract code from LLM responses.
-
-    Returns:
-        Tuple: (reflection_plan, revised_code)
-               - reflection_plan: Text describing the critique and planned edits.
-               - revised_code: The minimally revised code, or original if no changes.
-    """
-
-    system_prompt1 = {"SYSTEM":"    You are a senior data scientist, trying to check a code written by an junior data scientist to solve a machine learning engineering task - a Kaggle competetion" ,
+    system_prompt1 = {"SYSTEM":"    You are a senior data scientist and code reviewer, trying to check a code written by an junior data scientist to solve a machine learning engineering task - a Kaggle competetion" ,
                     "How to answer the user":" Whenever you answer, always:"
-                    " 1. Write a “PLAN:” section in plain text—3–5 concise bullet points."
-                    " 2. Then write a “CODE:” section containing exactly one fenced Python block:"
-                    "```python"
+                    "  Write a bullet list of all the bugs or modification needed plain text—3–5 concise points."
+ 
                 }
     
     # Stage 1: Critique and Edit Proposal (Prompt from your Agent.reflect)
     critique_prompt = { 
-        "Question" : f"I am writing a code to solve this task : {task_desc}  , and I wrote this code below ",
+        "Question" : f"I am writing a code to solve a data science task , and I wrote this code below ",
         
         # --- CODE TO REVIEW ---
-        "Code to Review": wrap_code_func(code),  # Use the passed function
+        "Code to Review": wrap_code_func(code), 
         # --- RULES ---
         "Your Task": "Provide a Code review for possible mistakes and bugs , and also give steps to fix it systimatically",
         "Rules I need you to follow": (
@@ -107,7 +85,7 @@ def perform_two_step_reflection(
                     }
     coder_prompt = {
         # --- TASK ---
-        "Question" : f"I am trying to improve my code to solve this task : {task_desc} , following the review and instructions I got from my teammates ",
+        "Question" : f"I am trying to improve my code, following the review and instructions I got from my teammates ",
 
         "Task": (
             "1. Read the 'Original Code'.\n"

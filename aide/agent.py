@@ -14,7 +14,7 @@ from .utils.config import Config
 from .utils.pretty_logging import log_step, logger        
 from .utils.metric import MetricValue, WorstMetricValue
 from .utils.response import extract_code, extract_text_up_to_code, wrap_code,trim_long_string, format_code
-from .utils.self_reflection import perform_two_step_reflection  
+from .utils.self_reflection_2 import perform_two_step_reflection  , perform_two_step_reflection_with_fewshot
 from pathlib import Path 
 import os
 try:
@@ -382,7 +382,7 @@ class Agent:
             Tuple: (reflection_plan, revised_code)
         """
         logger.debug("Initiating two-step self-reflection...")
-        reflection_plan, revised_code = perform_two_step_reflection(
+        reflection_plan, revised_code = perform_two_step_reflection_with_fewshot(
             code=code,
             task_desc=self.task_desc,
             model_name=self.acfg.code.model,
@@ -456,7 +456,7 @@ class Agent:
                         f"Node {result_node.id} self-reflected and updated code"
                     )
                     reflection_applied = True
-                    # Log reflection results
+
                     # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>") 
                     if self.wandb_run and self.cfg.wandb.log_code:
                          reflected_code_to_log = reflection_code[:10000] + ("\n..." if len(reflection_code) > 10000 else "")
