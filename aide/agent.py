@@ -14,7 +14,7 @@ from .utils.config import Config
 from .utils.pretty_logging import log_step, logger        
 from .utils.metric import MetricValue, WorstMetricValue
 from .utils.response import extract_code, extract_text_up_to_code, wrap_code,trim_long_string, format_code
-from .utils.self_reflection import perform_two_step_reflection  , perform_two_step_reflection_with_fewshot
+from .utils.self_reflection_2 import perform_two_step_reflection  , perform_two_step_reflection_with_fewshot
 from pathlib import Path 
 import os
 try:
@@ -404,6 +404,35 @@ class Agent:
 
         return reflection_plan, revised_code
 
+    def double_reflect(self, code: str) -> tuple[str, str]:
+        """
+        Performs a two-step self-reflection using the external utility function.
+
+        Returns:
+            Tuple: (reflection_plan, revised_code)
+        """
+        logger.debug("Initiating two-step self-reflection...")
+        reflection_plan, revised_code = perform_two_step_reflection(
+            code=code,
+            task_desc=self.task_desc,
+            model_name=self.acfg.code.model,
+            temperature=self.acfg.code.temp,
+            convert_system_to_user=self.acfg.convert_system_to_user,
+            query_func=query,  # Pass the imported query function
+            wrap_code_func=wrap_code,  # Pass the imported wrap_code function
+            extract_code_func=extract_code,  # Pass the imported extract_code function
+        )
+
+        if revised_code != code and revised_code:  # Check if code actually changed
+            logger.debug("Self-reflection resulted in code changes.")
+        elif reflection_plan == "No specific errors found requiring changes.":
+            logger.debug("Self-reflection found no errors requiring changes.")
+        else:
+            logger.warning(
+                "Self-reflection finished, but revised code is same as original or empty."
+            )
+
+        return reflection_plan, revised_code
     def update_data_preview(
         self,
     ):
@@ -426,7 +455,7 @@ class Agent:
             node_stage = "draft"
             result_node = self._draft(parent_node)
         elif parent_node.is_buggy:
-            # draft_flag=True
+            critique_flag=True
             node_stage = "debug"
             result_node = self._debug(parent_node)
             
@@ -477,7 +506,41 @@ class Agent:
                     f"Error during self-reflection for node {result_node.id}: {e}",
                     exc_info=True,
                 )
+        if critique_flag and self.acfg.ITS_Strategy=="self-reflection":  # Or based on your reflection strategy
+            try:
+                    # console.rule(f"[cyan]Stage : Self Reflection")
+                    reflection_plan, reflection_code = self.double_reflect(code=result_node.code)
+                    if (
+                        reflection_code
+                        and reflection_code.strip()
+                        and reflection_code != result_node.code
+                    ):
+                        result_node.code = reflection_code
+                        logger.debug(
+                            f"Node {result_node.id} self-reflected and updated code"
+                        )
+                        reflection_applied = True
 
+                        # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>") 
+                        if self.wandb_run and self.cfg.wandb.log_code:
+                            reflected_code_to_log = reflection_code[:10000] + ("\n..." if len(reflection_code) > 10000 else "")
+                            #  step_log_data[f"{node_stage}/reflected_code"] = wandb.Html(f"<pre>{reflected_code_to_log}</pre>") 
+
+                    elif reflection_plan != "No specific errors found requiring changes.":
+                        logger.debug(
+                            f"Node {result_node.id} self-reflection completed, but no changes applied."
+                        )
+                        # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{reflection_plan}</pre>")  # Log even if no code change
+                    else:
+                        message = "No errors found by reflection."
+                        # step_log_data[f"{node_stage}/reflection_plan"] = wandb.Html(f"<pre>{message}</pre>")  
+
+
+            except Exception as e:
+                logger.error(
+                    f"Error during self-reflection for node {result_node.id}: {e}",
+                    exc_info=True,
+                )
         # reflection_applied = False
         # if exec_result.exc_type is not None:
         #     logger.warning(f"Node {result_node.id} execution error: {exec_result.exc_type}")
