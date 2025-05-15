@@ -42,7 +42,7 @@ from .utils.wandb_retreival import get_wb_data, save_logs_to_wandb
 
 # Use the global logger
 logger = logging.getLogger("aide")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 logger.propagate = False
 
 class VerboseFilter(logging.Filter):
@@ -155,7 +155,7 @@ def run():
 
     logger.addHandler(file_handler)
     logger.addHandler(verbose_file_handler)
-    logger.addHandler(console_handler)
+    # logger.addHandler(console_handler)
 
     logger.info(f'Starting run "{cfg.exp_name}"')
 
