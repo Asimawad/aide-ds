@@ -50,7 +50,7 @@ agent:
     model: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
     # model: gpt-4-turbo
     temp: 0.5
-    max_new_tokens:  3200
+    max_new_tokens:  2048
     top_p : 0.9
     top_k : 50
     num_return_sequences : 1
