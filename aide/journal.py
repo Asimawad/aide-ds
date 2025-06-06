@@ -6,10 +6,12 @@ The journal is the core datastructure in AIDE that contains:
 - evaluation information such as metrics
 ...
 """
+# aide/journal.py
 
 import copy
 import time
 import uuid
+import logging # For potential warning in stage_name
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 
@@ -24,41 +26,49 @@ console = Console()
 
 @dataclass(eq=False)
 class Node(DataClassJsonMixin):
-    """A single node in the solution tree. Contains code, execution results, and evaluation information."""
+    # Positional fields:
+    code: str  # Fields without defaults must come first.
 
-    # ---- code & plan ----
-    code: str
-    plan: str = field(default=None, kw_only=True)  # type: ignore
-    summary: str = (None,)
-    task_summary: str = " "
-    # ---- general attrs ----
-    step: int = field(default=None, kw_only=True)  # type: ignore
-    id: str = field(default_factory=lambda: uuid.uuid4().hex, kw_only=True)
+    # 'id' is now a positional field with a default_factory.
+    # This ensures its value from the original object is passed to __init__
+    # during deepcopy's reconstruction via __reduce__.
+    # For new Node() calls, if 'id' isn't provided, factory is used.
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
+
+    # Keyword-only fields:
+    plan: Optional[str] = field(default=None, kw_only=True)
+    summary: Optional[str] = field(default=None, kw_only=True)
+    task_summary: str = field(default=" ", kw_only=True)
+    
+    step: Optional[int] = field(default=None, kw_only=True)
     ctime: float = field(default_factory=lambda: time.time(), kw_only=True)
     parent: Optional["Node"] = field(default=None, kw_only=True)
-    children: set["Node"] = field(default_factory=set, kw_only=True)
+    
+    # children is managed by __post_init__ and parent assignment.
+    # init=False means it's not an __init__ param. repr=False is for cleaner default repr.
+    children: set["Node"] = field(default_factory=set, init=False, repr=False)
 
-    # ---- execution info ----
-    _term_out: list[str] = field(default=None, kw_only=True)  # type: ignore
-    exec_time: float = field(default=None, kw_only=True)  # type: ignore
-    exc_type: str | None = field(default=None, kw_only=True)
-    exc_info: dict | None = field(default=None, kw_only=True)
-    exc_stack: list[tuple] | None = field(default=None, kw_only=True)
+    # stage is assigned by Agent logic (e.g. SelfDebugAgent)
+    stage: Optional[str] = field(default=None, kw_only=True)
 
-    # ---- evaluation ----
-    # post-execution result analysis (findings/feedback)
-    analysis: str = field(default=None, kw_only=True)  # type: ignore
-    metric: MetricValue = field(default=None, kw_only=True)  # type: ignore
-    code_quality: float = field(default=0, kw_only=True)  # type: ignore
-    gold_medal: bool = field(default=0, kw_only=True)  # type: ignore
-    silver_medal: bool = field(default=0, kw_only=True)  # type: ignore
-    bronze_medal: bool = field(default=0, kw_only=True)  # type: ignore
-    above_median: bool = field(default=0, kw_only=True)  # type: ignore
-    effective_debug_step: bool = field(default=0, kw_only=True)  # type: ignore
-    effective_reflections: bool = field(default=0, kw_only=True)  # type: ignore
-    # whether the agent decided that the code is buggy
-    # -> always True if exc_type is not None or no valid metric
-    is_buggy: bool = field(default=None, kw_only=True)  # type: ignore
+    # Execution info
+    _term_out: Optional[list[str]] = field(default=None, kw_only=True)
+    exec_time: Optional[float] = field(default=None, kw_only=True)
+    exc_type: Optional[str] = field(default=None, kw_only=True)
+    exc_info: Optional[dict] = field(default=None, kw_only=True)
+    exc_stack: Optional[list[tuple]] = field(default=None, kw_only=True)
+
+    # Evaluation
+    analysis: Optional[str] = field(default=None, kw_only=True)
+    metric: Optional[MetricValue] = field(default=None, kw_only=True)
+    code_quality: float = field(default=0.0, kw_only=True)
+    gold_medal: bool = field(default=False, kw_only=True)
+    silver_medal: bool = field(default=False, kw_only=True)
+    bronze_medal: bool = field(default=False, kw_only=True)
+    above_median: bool = field(default=False, kw_only=True)
+    effective_debug_step: bool = field(default=False, kw_only=True)
+    effective_reflections: bool = field(default=False, kw_only=True)
+    is_buggy: Optional[bool] = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         if self.parent is not None:
@@ -68,12 +78,17 @@ class Node(DataClassJsonMixin):
     def stage_name(self) -> Literal["draft", "debug", "improve"]:
         """
         Return the stage of the node:
-        - "stage" if the node is an initial solution draft
+        - "draft" if the node is an initial solution draft
         - "debug" if the node is the result of a debugging step
         - "improve" if the node is the result of an improvement step
         """
         if self.parent is None:
             return "draft"
+        if self.parent.is_buggy is None:
+            # This case should ideally not happen if parent nodes are fully evaluated.
+            # Log a warning if it does. For calculation, treat as not buggy to avoid crashing.
+            logging.warning(f"Parent node {self.parent.id} of node {self.id} has is_buggy=None. Defaulting stage logic.")
+            return "improve" # Or handle as an error/default case
         return "debug" if self.parent.is_buggy else "improve"
 
     def absorb_exec_result(self, exec_result: ExecutionResult):
@@ -87,6 +102,8 @@ class Node(DataClassJsonMixin):
     @property
     def term_out(self) -> str:
         """Get the terminal output of the code execution (after truncating it)."""
+        if self._term_out is None:
+            return "" 
         return trim_long_string("".join(self._term_out))
 
     @property
@@ -95,22 +112,43 @@ class Node(DataClassJsonMixin):
         return not self.children
 
     def __eq__(self, other):
-        return isinstance(other, Node) and self.id == other.id
+        # Ensure id exists before comparing.
+        if not isinstance(other, Node) or not hasattr(other, 'id') or not hasattr(self, 'id'):
+            return False
+        if self.id is None or other.id is None: # Should not happen with proper init
+             return False 
+        return self.id == other.id
 
     def __hash__(self):
+        if not hasattr(self, 'id') or self.id is None:
+            # This should ideally be unreachable if __init__ (and deepcopy reconstruction) works.
+            # If reached, it means 'id' was not set prior to hashing.
+            # Raising a more specific error or logging can help debug Node construction.
+            # For now, let original AttributeError propagate if id truly missing.
+            # If self.id is None after factory, that's also an issue.
+            # The default_factory for id should always return a str.
+            raise AttributeError(f"CRITICAL: Node object (repr: {object.__repr__(self)}) is missing 'id' or 'id' is None at hashing time. This indicates a construction or deepcopy issue.")
         return hash(self.id)
 
     @property
     def debug_depth(self) -> int:
         """
-        Length of the current debug path
-        - 0 if the node is not a debug node (parent is not buggy)
-        - 1 if the parent is buggy but the skip parent isn't
-        - n if there were n consecutive debugging steps
+        Length of the current debug path (iterative calculation).
+        - 0 if the node is not a debug node (parent is None or parent is not buggy)
+        - n if there were n consecutive debugging steps up the parent chain.
         """
-        if self.stage_name != "debug":
+        if self.parent is None or self.parent.is_buggy is None or not self.parent.is_buggy:
             return 0
-        return self.parent.debug_depth + 1  # type: ignore
+        
+        # If we are here, self.parent exists and self.parent.is_buggy is True.
+        # This node is the result of debugging its parent.
+        depth = 0
+        current_ancestor = self
+        while current_ancestor.parent is not None and \
+              current_ancestor.parent.is_buggy: # is_buggy should be True or False
+            depth += 1
+            current_ancestor = current_ancestor.parent
+        return depth
 
 
 @dataclass

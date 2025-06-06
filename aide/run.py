@@ -84,7 +84,6 @@ def run():
     cfg = load_cfg()
     cfg.log_dir.mkdir(parents=True, exist_ok=True)
 
-    # --- Logger Setup ---
     logger = logging.getLogger("aide") 
     logger.setLevel(logging.DEBUG) 
     logger.handlers.clear() 
@@ -113,7 +112,6 @@ def run():
     httpx_logger.setLevel(logging.WARNING)
     logger.info(f"Logging initialized. verbose.log level: DEBUG, aide.log level: INFO, Console level: {cfg.log_level.upper()}.")
     logger.info(f'Starting run "{cfg.exp_name}"')
-    # --- End Logger Setup ---
 
     competition_benchmarks = None
     try:
@@ -191,7 +189,7 @@ def run():
                 
                 if (current_step_num_display % cfg.get('save_every_n_steps', 1)) == 0:
                     logger.info(f"Saving run state at step {current_step_num_display}")
-                    save_run(cfg, journal) # This saves journal.json, config.yaml, tree_plot.html locally
+                    # save_run(cfg, journal) # This saves journal.json, config.yaml, tree_plot.html locally
                     
                 global_step += 1
                 progress_bar.update(main_task, advance=1)
@@ -200,8 +198,12 @@ def run():
 
         logger.info("All agent steps completed.")
         logger.info("Final solution tree structure:\n" + journal_to_string_tree(journal))
-        save_run(cfg, journal) 
-
+        try:
+            save_run(cfg, journal) 
+        except Exception as e_save:
+            logger.error(f"Error saving run state: {e_save}", exc_info=True)
+            console.print(f"\n[bold red]Error saving run state: {e_save}[/bold red]")
+        console.print("\n[bold green]Run completed successfully![/bold green]")
     except KeyboardInterrupt:
         logger.warning("Run interrupted by user (KeyboardInterrupt).")
         console.print("\n[bold yellow]Run interrupted by user. Saving current state...[/bold yellow]")
@@ -212,7 +214,6 @@ def run():
     finally:
         logger.info("Interpreter cleanup initiated.")
         interpreter.cleanup_session()
-
 
         active_wandb_run_id = None
         if wandb_logger_instance and wandb_logger_instance.wandb_run:
@@ -239,7 +240,7 @@ def run():
             logger.info("Calculating comprehensive metrics locally (before W&B finalization)...")
             generate_all_metrics(
                 cfg.exp_name, 
-                run_id_for_wandb=active_wandb_run_id # Pass the ID if available
+                run_id_for_wandb=active_wandb_run_id
             )
             # comprehensive_metrics_report.json is now in logs/{exp_name}/
         except Exception as e:

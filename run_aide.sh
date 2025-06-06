@@ -29,7 +29,7 @@ aide \
     competition_name="${competition_name}" \
     agent.steps=25 \
     agent.obfuscate=False \
-    agent.ITS_Strategy="self-consistency" \
+    agent.ITS_Strategy="self-debug" \
     agent.code.model="${CODER_MODEL}" \
     agent.code.planner_model="${CODER_MODEL}" \
     agent.code.temp=0.8 \

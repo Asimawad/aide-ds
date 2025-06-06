@@ -609,35 +609,7 @@ class SelfDebugAgent(Agent): # Inherit from Agent
             result_node.is_buggy
         )
 
-        if should_apply_reflection:
-            logger.info(f"{log_prefix_main_step}: Node {result_node.id} is buggy after initial {initial_node_stage}. Applying self-reflection.")
-            reflection_plan, reflection_code = self.reflect(node=result_node) # self.reflect is from base Agent
-            
-            if reflection_code and reflection_code.strip() and reflection_code != result_node.code:
-                result_node.code = reflection_code
-                result_node.plan += f"\n\n--- Self-Reflection Applied ---\n{reflection_plan}" # Append reflection plan
-                self.reflection_applied = True
-                
-                logger.info(f"{log_prefix_main_step}: Re-executing Node {result_node.id} after self-reflection.")
-                result_node, reflection_exec_duration = self._execute_and_evaluate_node(
-                    result_node, exec_callback, "PostReflection"
-                )
-                exec_duration += reflection_exec_duration # Add to total exec time for the step
-            else:
-                logger.info(f"{log_prefix_main_step}: Self-reflection did not result in code changes for Node {result_node.id}.")
-
-        # Update effective_debug_step based on reflection outcome
-        if buggy_status_before_reflection and not result_node.is_buggy and self.reflection_applied:
-            result_node.effective_debug_step = True # Count reflection as an effective debug
-            result_node.effective_reflections = True 
-            # console.print(f"[bold green]Self-reflection fixed the bug for Node {result_node.id}![/bold green]")
-        elif self.reflection_applied: # Reflection applied but still buggy or was not buggy before
-            result_node.effective_reflections = False # Or some other flag for "reflection attempted"
-
-
         # === S* Style Iterative Debugging Integration START ===
-        # Get max_rounds from config, default to 0 if not present or not TOTAgent context
-        # Ensure s_star_iterative_debug is a section in your agent config, e.g., agent.s_star_iterative_debug.max_rounds
         max_s_star_rounds = 0
         if hasattr(self.acfg, 's_star_iterative_debug') and hasattr(self.acfg.s_star_iterative_debug, 'max_rounds'):
             max_s_star_rounds = self.acfg.s_star_iterative_debug.max_rounds
@@ -673,10 +645,13 @@ class SelfDebugAgent(Agent): # Inherit from Agent
                 if not processed_debug_candidate_node.is_buggy:
                     logger.info(f"{log_prefix_iter_debug}: SUCCEEDED. Updating main result_node (ID: {result_node.id}) with successful debug from candidate (ID: {processed_debug_candidate_node.id}).")
                     # Transfer successful state to the original result_node for this AIDE step
+                    print(f"Debug candidate node {processed_debug_candidate_node.id} succeeded. Updating main result_node {result_node.id}.")
+                    print("----------------------------------------")
+                    result_node.id = processed_debug_candidate_node.id # Keep the same ID
                     result_node.code = processed_debug_candidate_node.code
                     result_node.plan = processed_debug_candidate_node.plan # Debug might change the plan
                     result_node.summary = processed_debug_candidate_node.summary
-                    result_node.absorb_exec_result(processed_debug_candidate_node.exec_result_obj_for_journal) # Make sure this method exists and sets all exec fields
+                    # result_node.absorb_exec_result(processed_debug_candidate_node.exec_result_obj_for_journal) # Make sure this method exists and sets all exec fields
                     result_node.analysis = processed_debug_candidate_node.analysis
                     result_node.metric = processed_debug_candidate_node.metric
                     result_node.code_quality = processed_debug_candidate_node.code_quality
@@ -694,7 +669,7 @@ class SelfDebugAgent(Agent): # Inherit from Agent
                     result_node.code = processed_debug_candidate_node.code # Take the latest attempt's code
                     result_node.plan = processed_debug_candidate_node.plan
                     result_node.summary = processed_debug_candidate_node.summary
-                    result_node.absorb_exec_result(processed_debug_candidate_node.exec_result_obj_for_journal)
+                    # result_node.absorb_exec_result(processed_debug_candidate_node.exec_result_obj_for_journal)
                     result_node.analysis = processed_debug_candidate_node.analysis
                     result_node.metric = WorstMetricValue() # Still buggy
                     result_node.is_buggy = True
@@ -731,7 +706,7 @@ class SelfDebugAgent(Agent): # Inherit from Agent
             "eval/reflection_applied_this_step": 1 if self.reflection_applied else 0, # Changed key for clarity
             "eval/reflection_successful_this_step": 1 if self.reflection_applied and not result_node.is_buggy and buggy_status_before_reflection else 0,
             "eval/s_star_debug_rounds_if_applied": getattr(result_node, 's_star_debug_rounds_applied', 0),
-            "eval/initial_op_was_effective_fix": 1 if not parent_node_from_search.is_buggy and initial_node_stage == "debug" and not result_node.is_buggy and not self.reflection_applied and not hasattr(result_node, 's_star_debug_rounds_applied') else 0,
+            "eval/initial_op_was_effective_fix": 1 if parent_node_from_search  and not parent_node_from_search.is_buggy and initial_node_stage == "debug" and not result_node.is_buggy and not self.reflection_applied and not hasattr(result_node, 's_star_debug_rounds_applied') else 0,
         }
         if self.wandb_logger and self.wandb_logger.wandb_run:
             self.wandb_logger.log_step_data(base_step_log_data, result_node, current_step_number, submission_dir_this_step)
