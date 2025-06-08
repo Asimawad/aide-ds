@@ -1,12 +1,9 @@
-# Inside ./utils/self_reflection.py
 from typing import Callable
 import re
 
-# Assuming query, wrap_code, extract_code are accessible or passed in.
-# Define necessary type hints for the functions being passed
-QueryFuncType = Callable[..., str]  # Simplified type hint for query
-WrapCodeFuncType = Callable[[str], str]  # Simplified type hint for wrap_code
-ExtractCodeFuncType = Callable[[str], str]  # Simplified type hint for extract_code
+QueryFuncType = Callable[..., str] 
+WrapCodeFuncType = Callable[[str], str] 
+ExtractCodeFuncType = Callable[[str], str] 
 
 
 def perform_two_step_reflection(
@@ -48,15 +45,13 @@ def perform_two_step_reflection(
                     "```python"
                 }
     
-    # Stage 1: Critique and Edit Proposal (Prompt from your Agent.reflect)
+    # Stage 1: Critique and Edit Proposal 
     critique_prompt = { 
         "Question" : f"I am writing a code to solve this task : {task_desc}  , and I wrote this code below ",
         
-        # --- CODE TO REVIEW ---
-        "Code to Review": wrap_code_func(code),  # Use the passed function
-        # --- RULES ---
+        "Code to Review": wrap_code_func(code), 
         "Your Task": "Provide a Code review for possible mistakes and bugs , and also give steps to fix it systimatically",
-        "Rules I need you to follow": (
+        "Rules you need to follow": (
             "RULE 1: **DO NOT WRITE ANY PYTHON CODE IN YOUR RESPONSE.**\n"
             "RULE 2: Do not suggest big changes or new ideas.\n"
             "RULE 3: Only suggest fixes for small mistakes in the code shown.\n"
@@ -69,33 +64,28 @@ def perform_two_step_reflection(
             
             "1. ”Review” Section: - Explaining the main mistake(s).\n"
             "2. ”Instructions” Section: write a NUMBERED list of fix instructions.\n"
-            "- Each number is ONE simple step Guiding ne from the start to the finish of the code.\n"
+            "- Each number is ONE simple step Guiding from the start to the finish of the code.\n"
             "\n"
             "If no mistakes are found:\n"
             "- Write only this sentence: ```No specific errors found requiring changes.```."
             "\n"
         ),
     }
-    plan_raw = query_func(  # Use the passed function
+    plan_raw = query_func(  
         system_message=system_prompt1,
         user_message=critique_prompt,
-        model=model_name,  # Use the passed argument
-        temperature=temperature,  # Use the passed argument
-        convert_system_to_user=convert_system_to_user,  # Use the passed argument
+        model=model_name,  
+        temperature=temperature,  
+        convert_system_to_user=convert_system_to_user,  
     )
-    # Clean the plan (e.g., remove think tags if your query function adds them)
 
     parts = re.split(r"</think>", plan_raw, maxsplit=1, flags=re.DOTALL)
-    # parts[0] is everything before </think>, parts[1] is everything after
     reflection_plan = parts[1].strip() if len(parts) > 1 else ""
 
-    # Check if critique suggested no changes
     if reflection_plan.strip() == "No specific errors found requiring changes.":
-        # Return the original code as no changes are needed
         return reflection_plan, code
 
-    # Stage 2: Focused Code Edit (Prompt from your Agent.reflect)
-    
+    # Stage 2: Focused Code Edit 
     
     system_prompt2 = {"SYSTEM":"You are a Kaggle Grandmaster and a precise coder. you will receive a Kaggle competetion code, a review on the correctness of this code, and Instructions on how to improve its correctness" ,
                         "Task": "your task is to help your team win the competetion by following the code review and implementing the suggested instructions ",
@@ -106,7 +96,6 @@ def perform_two_step_reflection(
                         "CRITICAL REQUIREMENT" :"Always make sure that you don't provide a partail solutions, your final code block sholud be complete, starting from imports, untill saving the submission",
                     }
     coder_prompt = {
-        # --- TASK ---
         "Question" : f"I am trying to improve my code to solve this task : {task_desc} , following the review and instructions I got from my teammates ",
 
         "Task": (
@@ -115,11 +104,8 @@ def perform_two_step_reflection(
             "3. Apply ONLY the changes from 'Edit Instructions' to the 'Original Code'.\n"
             "4. Output the result EXACTLY as shown in 'Output Format'."
         ),
-        # --- ORIGINAL CODE ---
-        "Original Code": wrap_code_func(code),  # Use the passed function
-        # --- EDIT INSTRUCTIONS ---
-        "Edit Instructions": reflection_plan,  # Use the cleaned plan from Stage 1
-        # --- RULES ---
+        "Original Code": wrap_code_func(code),  
+        "Edit Instructions": reflection_plan,  
         "Rules": (
             "RULE 1: Apply the steps from 'Edit Instructions'.\n"
             "RULE 2: **Do NOT change any other part of the code. if they are ok**\n"
@@ -127,7 +113,6 @@ def perform_two_step_reflection(
             "RULE 4: If 'Edit Instructions' accidentally contains any code examples, IGNORE THEM. Follow only the numbered text steps.\n"
             "RULE 5: Your entire output MUST follow the 'Output Format'."
         ),
-        # --- OUTPUT FORMAT ---
         "Output Format": (
             "your thinking and planning should be hiddin from me, that is achieved by wrapping it between <think></think> tags, I just care about the code"
             "Line 1: Start IMMEDIATELY with a comment '# Applying edits based on review.'\n"
@@ -139,10 +124,7 @@ def perform_two_step_reflection(
         ),
     }
 
-    revised_code_response = query_func(  # Use the passed function
-        system_message=system_prompt2,
-        user_message=coder_prompt,
-        model=model_name,  # Use the passed argument
+    revised_code_response = query_func(  
         temperature=temperature,  # Use the passed argument
         convert_system_to_user=convert_system_to_user,  # Use the passed argument
     )
