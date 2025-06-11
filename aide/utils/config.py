@@ -175,10 +175,7 @@ def prep_cfg(cfg: Config):
         org1, model1 = parse_model_id(cfg.agent.code.model)
 
     experiement_id = (
-        org1 or ""
-        + "_"
-        + model1
-        + str(cfg.competition_name or str(cfg.data_dir.name))
+        model1
         + "_"
         + cfg.agent.ITS_Strategy
         + "_"
